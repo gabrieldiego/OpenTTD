@@ -1376,21 +1376,18 @@ static CallBackFunction ToolbarBtn_NULL(Window *)
 	return CallBackFunction::None;
 }
 
-/**
- * Match shortcuts to the action they perform, rather than to a menu's position.
- * The first entry for each widget is also used for its tooltip.
- */
+/** Match shortcuts to button actions (no result) or to specific menu entries. */
 static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::optional<int> result)
 {
 	struct Shortcut {
 		WidgetID widget;
-		int result;
+		std::optional<int> result;
 		std::string_view name;
 		bool global = false;
 	};
 	const Shortcut editor[] = {
-		{WID_TE_PAUSE, 0, "pause"},
-		{WID_TE_FAST_FORWARD, 0, "fastforward"},
+		{WID_TE_PAUSE, std::nullopt, "pause"},
+		{WID_TE_FAST_FORWARD, std::nullopt, "fastforward"},
 		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::GameOptions), "settings"},
 		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::Transparencies), "transparency_toolbar", true},
 		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::TransparentBuildings), "transparency_houses", true},
@@ -1400,16 +1397,16 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 		{WID_TE_SAVE, to_underlying(SaveLoadEditorMenuEntries::ExitGame), "quit", true},
 		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::ShowSmallMap), "smallmap"},
 		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::ShowExtraViewport), "extra_viewport"},
-		{WID_TE_ZOOM_IN, 0, "zoomin"},
-		{WID_TE_ZOOM_OUT, 0, "zoomout"},
-		{WID_TE_LAND_GENERATE, 0, "gen_land"},
+		{WID_TE_ZOOM_IN, std::nullopt, "zoomin"},
+		{WID_TE_ZOOM_OUT, std::nullopt, "zoomout"},
+		{WID_TE_LAND_GENERATE, std::nullopt, "gen_land"},
 		{WID_TE_TOWN_GENERATE, 0, "gen_town"},
-		{WID_TE_INDUSTRY, 0, "gen_industry"},
+		{WID_TE_INDUSTRY, std::nullopt, "gen_industry"},
 		{WID_TE_ROADS, _last_built_roadtype, "build_road"},
 		{WID_TE_TRAMS, _last_built_tramtype, "build_tram"},
-		{WID_TE_WATER, 0, "build_docks"},
-		{WID_TE_TREES, 0, "build_trees"},
-		{WID_TE_SIGNS, 0, "build_sign"},
+		{WID_TE_WATER, std::nullopt, "build_docks"},
+		{WID_TE_TREES, std::nullopt, "build_trees"},
+		{WID_TE_SIGNS, std::nullopt, "build_sign"},
 		{WID_TE_MUSIC_SOUND, 0, "music"},
 		{WID_TE_HELP, 0, "land_info"},
 		{WID_TE_HELP, 3, "console", true},
@@ -1420,8 +1417,8 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 	auto league_tables = LeagueTable::Iterate();
 	int first_league = league_tables.empty() ? LTMN_PERFORMANCE_LEAGUE : (*league_tables.begin())->index.base();
 	const Shortcut normal[] = {
-		{WID_TN_PAUSE, 0, "pause"},
-		{WID_TN_FAST_FORWARD, 0, "fastforward"},
+		{WID_TN_PAUSE, std::nullopt, "pause"},
+		{WID_TN_FAST_FORWARD, std::nullopt, "fastforward"},
 		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::GameOptions), "settings"},
 		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::Transparencies), "transparency_toolbar", true},
 		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::TransparentBuildings), "transparency_houses", true},
@@ -1451,8 +1448,8 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 		{WID_TN_ROADVEHS, _local_company.base(), "roadveh_list"},
 		{WID_TN_SHIPS, _local_company.base(), "ship_list"},
 		{WID_TN_AIRCRAFT, _local_company.base(), "aircraft_list"},
-		{WID_TN_ZOOM_IN, 0, "zoomin"},
-		{WID_TN_ZOOM_OUT, 0, "zoomout"},
+		{WID_TN_ZOOM_IN, std::nullopt, "zoomin"},
+		{WID_TN_ZOOM_OUT, std::nullopt, "zoomout"},
 		{WID_TN_RAILS, _last_built_railtype, "build_rail"},
 		{WID_TN_ROADS, _last_built_roadtype, "build_road"},
 		{WID_TN_TRAMS, _last_built_tramtype, "build_tram"},
@@ -1461,7 +1458,6 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 		{WID_TN_LANDSCAPE, 0, "terraform"},
 		{WID_TN_LANDSCAPE, 1, "build_trees"},
 		{WID_TN_MUSIC_SOUND, 0, "music"},
-		{WID_TN_MESSAGES, 0, ""},
 		{WID_TN_MESSAGES, 2, "delete_all_messages", true},
 		{WID_TN_HELP, 0, "land_info"},
 		{WID_TN_HELP, 3, "console", true},
@@ -1472,7 +1468,7 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 	};
 	std::span<const Shortcut> shortcuts = _game_mode == GameMode::Editor ? std::span<const Shortcut>(editor) : std::span<const Shortcut>(normal);
 	for (const auto &shortcut : shortcuts) {
-		if (shortcut.widget == widget && (!result.has_value() || shortcut.result == *result)) {
+		if (shortcut.widget == widget && shortcut.result == result) {
 			return shortcut.global ? HotkeyList::GetGlobalDisplayString(shortcut.name) : w->window_desc.hotkeys->GetDisplayString(shortcut.name);
 		}
 	}
