@@ -111,6 +111,43 @@ public:
 	}
 };
 
+/** Find the configured shortcut for a toolbar button or one of its menu entries. */
+static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::optional<int> result = std::nullopt);
+
+/** Preserve the contents and behaviour of an existing item when adding a shortcut column. */
+class ToolbarMenuItem : public DropDownListItem {
+	std::unique_ptr<const DropDownListItem> item;
+	uint padding; ///< Space needed to keep existing trailing columns aligned across rows.
+public:
+	ToolbarMenuItem(uint padding, std::unique_ptr<const DropDownListItem> item) : DropDownListItem(item->result, item->masked, item->shaded), item(std::move(item)), padding(padding) {}
+
+	bool Selectable() const override { return this->item->Selectable(); }
+	uint Height() const override { return this->item->Height(); }
+	uint Width() const override { return this->padding + this->item->Width(); }
+	void FilterText(StringFilter &filter) const override { this->item->FilterText(filter); }
+	int OnClick(const Rect &r, const Point &pt) const override { return this->item->OnClick(r.Indent(this->padding, _current_text_dir != TD_RTL), pt); }
+	void Draw(const Rect &full, const Rect &r, bool sel, int click_result, Colours bg_colour) const override { this->item->Draw(full, r.Indent(this->padding, _current_text_dir != TD_RTL), sel, click_result, bg_colour); }
+};
+
+/** Show a toolbar menu with configured shortcuts in the existing trailing text column. */
+static void ShowToolbarDropDownList(Window *w, DropDownList &&list, int selected, WidgetID widget, uint width = 0, DropDownOptions options = {}, std::string *filter = nullptr)
+{
+	using ShortcutItem = DropDownString<DropDownSpacer<ToolbarMenuItem, true>, FontSize::Small, true>;
+	uint shortcut_width = 0;
+	for (const auto &item : list) {
+		if (item->Selectable()) shortcut_width = std::max(shortcut_width, GetStringBoundingBox(GetToolbarShortcut(w, widget, item->result), FontSize::Small).width);
+	}
+	if (shortcut_width != 0) {
+		for (auto &item : list) {
+			if (!item->Selectable()) continue;
+			std::string shortcut = GetToolbarShortcut(w, widget, item->result);
+			uint padding = shortcut_width - GetStringBoundingBox(shortcut, FontSize::Small).width;
+			item = std::make_unique<ShortcutItem>(std::move(shortcut), padding, std::move(item));
+		}
+	}
+	ShowDropDownList(w, std::move(list), selected, widget, width, options, filter);
+}
+
 /**
  * Get options for toolbar dropdown menus,
  * @param options Additional options to include.
@@ -131,7 +168,7 @@ static DropDownOptions GetToolbarDropDownOptions(DropDownOptions options = {})
  */
 static void PopupMainToolbarMenu(Window *w, WidgetID widget, DropDownList &&list, int def)
 {
-	ShowDropDownList(w, std::move(list), def, widget, 0, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), def, widget, 0, GetToolbarDropDownOptions());
 }
 
 /**
@@ -305,7 +342,7 @@ static CallBackFunction ToolbarOptionsClick(Window *w)
 	list.push_back(MakeDropDownListCheckedItem(IsTransparencySet(TransparencyOption::Houses), STR_SETTINGS_MENU_TRANSPARENT_BUILDINGS, OptionMenuEntries::TransparentBuildings));
 	list.push_back(MakeDropDownListCheckedItem(IsTransparencySet(TransparencyOption::Signs), STR_SETTINGS_MENU_TRANSPARENT_SIGNS, OptionMenuEntries::TransparentStationSigns));
 
-	ShowDropDownList(w, std::move(list), 0, WID_TN_SETTINGS, 140, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), 0, WID_TN_SETTINGS, 140, GetToolbarDropDownOptions());
 	return CallBackFunction::None;
 }
 
@@ -701,7 +738,7 @@ static CallBackFunction ToolbarGraphsClick(Window *w)
 
 	if (_toolbar_mode != ToolbarMode::Normal) AddDropDownLeagueTableOptions(list);
 
-	ShowDropDownList(w, std::move(list), GRMN_OPERATING_PROFIT_GRAPH, WID_TN_GRAPHS, 140, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), GRMN_OPERATING_PROFIT_GRAPH, WID_TN_GRAPHS, 140, GetToolbarDropDownOptions());
 	return CallBackFunction::None;
 }
 
@@ -712,7 +749,7 @@ static CallBackFunction ToolbarLeagueClick(Window *w)
 	AddDropDownLeagueTableOptions(list);
 
 	int selected = list[0]->result;
-	ShowDropDownList(w, std::move(list), selected, WID_TN_LEAGUE, 140, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), selected, WID_TN_LEAGUE, 140, GetToolbarDropDownOptions());
 	return CallBackFunction::None;
 }
 
@@ -893,7 +930,7 @@ static std::string _tramtype_filter; ///< Persistent filter text for tramtype dr
 
 static CallBackFunction ToolbarBuildRailClick(Window *w)
 {
-	ShowDropDownList(w, GetRailTypeDropDownList(), _last_built_railtype, WID_TN_RAILS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_railtype_filter);
+	ShowToolbarDropDownList(w, GetRailTypeDropDownList(), _last_built_railtype, WID_TN_RAILS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_railtype_filter);
 	return CallBackFunction::None;
 }
 
@@ -914,7 +951,7 @@ static CallBackFunction MenuClickBuildRail(int index)
 
 static CallBackFunction ToolbarBuildRoadClick(Window *w)
 {
-	ShowDropDownList(w, GetRoadTypeDropDownList(RoadTramType::Road), _last_built_roadtype, WID_TN_ROADS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_roadtype_filter);
+	ShowToolbarDropDownList(w, GetRoadTypeDropDownList(RoadTramType::Road), _last_built_roadtype, WID_TN_ROADS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_roadtype_filter);
 	return CallBackFunction::None;
 }
 
@@ -935,7 +972,7 @@ static CallBackFunction MenuClickBuildRoad(int index)
 
 static CallBackFunction ToolbarBuildTramClick(Window *w)
 {
-	ShowDropDownList(w, GetRoadTypeDropDownList(RoadTramType::Tram), _last_built_tramtype, WID_TN_TRAMS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_tramtype_filter);
+	ShowToolbarDropDownList(w, GetRoadTypeDropDownList(RoadTramType::Tram), _last_built_tramtype, WID_TN_TRAMS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_tramtype_filter);
 	return CallBackFunction::None;
 }
 
@@ -958,7 +995,7 @@ static CallBackFunction ToolbarBuildWaterClick(Window *w)
 {
 	DropDownList list;
 	list.push_back(MakeDropDownListIconItem(SPR_IMG_BUILD_CANAL, PAL_NONE, STR_WATERWAYS_MENU_WATERWAYS_CONSTRUCTION, 0));
-	ShowDropDownList(w, std::move(list), 0, WID_TN_WATER, 140, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), 0, WID_TN_WATER, 140, GetToolbarDropDownOptions());
 	return CallBackFunction::None;
 }
 
@@ -979,7 +1016,7 @@ static CallBackFunction ToolbarBuildAirClick(Window *w)
 {
 	DropDownList list;
 	list.push_back(MakeDropDownListIconItem(SPR_IMG_AIRPORT, PAL_NONE, STR_AIRCRAFT_MENU_AIRPORT_CONSTRUCTION, 0));
-	ShowDropDownList(w, std::move(list), 0, WID_TN_AIR, 140, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), 0, WID_TN_AIR, 140, GetToolbarDropDownOptions());
 	return CallBackFunction::None;
 }
 
@@ -1005,7 +1042,7 @@ static CallBackFunction ToolbarForestClick(Window *w)
 	if (ObjectClass::GetUIClassCount() != 0) {
 		list.push_back(MakeDropDownListIconItem(SPR_IMG_TRANSMITTER, PAL_NONE, STR_LANDSCAPING_MENU_PLACE_OBJECT, 3));
 	}
-	ShowDropDownList(w, std::move(list), 0, WID_TN_LANDSCAPE, 100, GetToolbarDropDownOptions());
+	ShowToolbarDropDownList(w, std::move(list), 0, WID_TN_LANDSCAPE, 100, GetToolbarDropDownOptions());
 	return CallBackFunction::None;
 }
 
@@ -1278,7 +1315,7 @@ static CallBackFunction ToolbarScenGenIndustry(Window *w)
 
 static CallBackFunction ToolbarScenBuildRoadClick(Window *w)
 {
-	ShowDropDownList(w, GetScenRoadTypeDropDownList(RoadTramType::Road), _last_built_roadtype, WID_TE_ROADS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_roadtype_filter);
+	ShowToolbarDropDownList(w, GetScenRoadTypeDropDownList(RoadTramType::Road), _last_built_roadtype, WID_TE_ROADS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_roadtype_filter);
 	return CallBackFunction::None;
 }
 
@@ -1297,7 +1334,7 @@ static CallBackFunction ToolbarScenBuildRoad(int index)
 
 static CallBackFunction ToolbarScenBuildTramClick(Window *w)
 {
-	ShowDropDownList(w, GetScenRoadTypeDropDownList(RoadTramType::Tram), _last_built_tramtype, WID_TE_TRAMS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_tramtype_filter);
+	ShowToolbarDropDownList(w, GetScenRoadTypeDropDownList(RoadTramType::Tram), _last_built_tramtype, WID_TE_TRAMS, 140, GetToolbarDropDownOptions(DropDownOption::Filterable), &_tramtype_filter);
 	return CallBackFunction::None;
 }
 
@@ -1337,6 +1374,119 @@ static CallBackFunction ToolbarScenPlaceSign(Window *w)
 static CallBackFunction ToolbarBtn_NULL(Window *)
 {
 	return CallBackFunction::None;
+}
+
+/**
+ * Match shortcuts to the action they perform, rather than to a menu's position.
+ * The first entry for each widget is also used for its tooltip.
+ */
+static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::optional<int> result)
+{
+	struct Shortcut {
+		WidgetID widget;
+		int result;
+		std::string_view name;
+		bool global = false;
+	};
+	const Shortcut editor[] = {
+		{WID_TE_PAUSE, 0, "pause"},
+		{WID_TE_FAST_FORWARD, 0, "fastforward"},
+		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::GameOptions), "settings"},
+		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::Transparencies), "transparency_toolbar", true},
+		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::TransparentBuildings), "transparency_houses", true},
+		{WID_TE_SETTINGS, to_underlying(OptionMenuEntries::TransparentStationSigns), "transparency_signs", true},
+		{WID_TE_SAVE, to_underlying(SaveLoadEditorMenuEntries::SaveScenario), "saveload"},
+		{WID_TE_SAVE, to_underlying(SaveLoadEditorMenuEntries::ExitToMainMenu), "abandon", true},
+		{WID_TE_SAVE, to_underlying(SaveLoadEditorMenuEntries::ExitGame), "quit", true},
+		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::ShowSmallMap), "smallmap"},
+		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::ShowExtraViewport), "extra_viewport"},
+		{WID_TE_ZOOM_IN, 0, "zoomin"},
+		{WID_TE_ZOOM_OUT, 0, "zoomout"},
+		{WID_TE_LAND_GENERATE, 0, "gen_land"},
+		{WID_TE_TOWN_GENERATE, 0, "gen_town"},
+		{WID_TE_INDUSTRY, 0, "gen_industry"},
+		{WID_TE_ROADS, _last_built_roadtype, "build_road"},
+		{WID_TE_TRAMS, _last_built_tramtype, "build_tram"},
+		{WID_TE_WATER, 0, "build_docks"},
+		{WID_TE_TREES, 0, "build_trees"},
+		{WID_TE_SIGNS, 0, "build_sign"},
+		{WID_TE_MUSIC_SOUND, 0, "music"},
+		{WID_TE_HELP, 0, "land_info"},
+		{WID_TE_HELP, 3, "console", true},
+		{WID_TE_HELP, 9, "bounding_boxes", true},
+		{WID_TE_HELP, 10, "dirty_blocks", true},
+		{WID_TE_HELP, 11, "widget_outlines", true},
+	};
+	auto league_tables = LeagueTable::Iterate();
+	int first_league = league_tables.empty() ? LTMN_PERFORMANCE_LEAGUE : (*league_tables.begin())->index.base();
+	const Shortcut normal[] = {
+		{WID_TN_PAUSE, 0, "pause"},
+		{WID_TN_FAST_FORWARD, 0, "fastforward"},
+		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::GameOptions), "settings"},
+		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::Transparencies), "transparency_toolbar", true},
+		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::TransparentBuildings), "transparency_houses", true},
+		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::TransparentStationSigns), "transparency_signs", true},
+		{WID_TN_SETTINGS, to_underlying(OptionMenuEntries::SandboxOptions), "cheats"},
+		{WID_TN_SAVE, to_underlying(SaveLoadNormalMenuEntries::SaveGame), "saveload"},
+		{WID_TN_SAVE, to_underlying(SaveLoadNormalMenuEntries::ExitToMainMenu), "abandon", true},
+		{WID_TN_SAVE, to_underlying(SaveLoadNormalMenuEntries::ExitGame), "quit", true},
+		{WID_TN_SAVE, to_underlying(SaveLoadNormalMenuEntries::Autosave), "autosave"},
+		{WID_TN_SAVE, to_underlying(SaveLoadNormalMenuEntries::LoadGame), "load_game"},
+		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::ShowSmallMap), "smallmap"},
+		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::ShowExtraViewport), "extra_viewport"},
+		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::ShowSignList), "sign_list"},
+		{WID_TN_TOWNS, to_underlying(TownMenuEntries::ShowDirectory), "town_list"},
+		{WID_TN_SUBSIDIES, 0, "subsidies"},
+		{WID_TN_STATIONS, _local_company.base(), "station_list"},
+		{WID_TN_FINANCES, _local_company.base(), "finances"},
+		{WID_TN_COMPANIES, _local_company.base(), "companies"},
+		{WID_TN_COMPANIES, CTMN_CLIENT_LIST, "client_list"},
+		{WID_TN_STORY, _local_company == COMPANY_SPECTATOR ? CTMN_SPECTATOR : _local_company.base(), "story_book"},
+		{WID_TN_GOAL, _local_company == COMPANY_SPECTATOR ? CTMN_SPECTATOR : _local_company.base(), "goal_list"},
+		{WID_TN_GRAPHS, GRMN_OPERATING_PROFIT_GRAPH, "graphs"},
+		{WID_TN_GRAPHS, first_league, "league"},
+		{WID_TN_LEAGUE, first_league, "league"},
+		{WID_TN_INDUSTRIES, 2, "industry_list"},
+		{WID_TN_TRAINS, _local_company.base(), "train_list"},
+		{WID_TN_ROADVEHS, _local_company.base(), "roadveh_list"},
+		{WID_TN_SHIPS, _local_company.base(), "ship_list"},
+		{WID_TN_AIRCRAFT, _local_company.base(), "aircraft_list"},
+		{WID_TN_ZOOM_IN, 0, "zoomin"},
+		{WID_TN_ZOOM_OUT, 0, "zoomout"},
+		{WID_TN_RAILS, _last_built_railtype, "build_rail"},
+		{WID_TN_ROADS, _last_built_roadtype, "build_road"},
+		{WID_TN_TRAMS, _last_built_tramtype, "build_tram"},
+		{WID_TN_WATER, 0, "build_docks"},
+		{WID_TN_AIR, 0, "build_airport"},
+		{WID_TN_LANDSCAPE, 0, "terraform"},
+		{WID_TN_LANDSCAPE, 1, "build_trees"},
+		{WID_TN_MUSIC_SOUND, 0, "music"},
+		{WID_TN_MESSAGES, 0, ""},
+		{WID_TN_MESSAGES, 2, "delete_all_messages", true},
+		{WID_TN_HELP, 0, "land_info"},
+		{WID_TN_HELP, 3, "console", true},
+		{WID_TN_HELP, 9, "bounding_boxes", true},
+		{WID_TN_HELP, 10, "dirty_blocks", true},
+		{WID_TN_HELP, 11, "widget_outlines", true},
+		{WID_TN_HELP, 4, "ai_debug"},
+	};
+	std::span<const Shortcut> shortcuts = _game_mode == GameMode::Editor ? std::span<const Shortcut>(editor) : std::span<const Shortcut>(normal);
+	for (const auto &shortcut : shortcuts) {
+		if (shortcut.widget == widget && (!result.has_value() || shortcut.result == *result)) {
+			return shortcut.global ? HotkeyList::GetGlobalDisplayString(shortcut.name) : w->window_desc.hotkeys->GetDisplayString(shortcut.name);
+		}
+	}
+	return {};
+}
+
+/** Append the configured keys to a toolbar tooltip, leaving unbound buttons unchanged. */
+static bool ShowToolbarTooltip(Window *w, WidgetID widget, TooltipCloseCondition close_cond)
+{
+	std::string shortcut = GetToolbarShortcut(w, widget);
+	if (shortcut.empty()) return false;
+	StringID tooltip = w->GetWidget<NWidgetCore>(widget)->GetToolTip();
+	GuiShowTooltips(w, GetEncodedString(STR_JUST_RAW_STRING, GetString(tooltip) + "\n(" + shortcut + ")"), close_cond);
+	return true;
 }
 
 typedef CallBackFunction MenuClickedProc(int index);
@@ -2049,6 +2199,11 @@ struct MainToolbarWindow : Window {
 		if (cbf != CallBackFunction::None) _last_started_action = cbf;
 	}
 
+	bool OnTooltip([[maybe_unused]] Point pt, WidgetID widget, TooltipCloseCondition close_cond) override
+	{
+		return ShowToolbarTooltip(this, widget, close_cond);
+	}
+
 	EventState OnHotkey(int hotkey) override
 	{
 		CallBackFunction cbf = CallBackFunction::None;
@@ -2441,6 +2596,11 @@ struct ScenarioEditorToolbarWindow : Window {
 		CallBackFunction cbf = _scen_toolbar_dropdown_procs[widget](index);
 		if (cbf != CallBackFunction::None) _last_started_action = cbf;
 		SndClickBeep();
+	}
+
+	bool OnTooltip([[maybe_unused]] Point pt, WidgetID widget, TooltipCloseCondition close_cond) override
+	{
+		return ShowToolbarTooltip(this, widget, close_cond);
 	}
 
 	EventState OnHotkey(int hotkey) override

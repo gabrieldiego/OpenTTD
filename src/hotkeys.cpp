@@ -313,6 +313,31 @@ int HotkeyList::CheckMatch(uint16_t keycode, bool global_only) const
 }
 
 
+/** Get the configured keys for an action, omitting the internal GLOBAL marker. */
+std::string HotkeyList::GetDisplayString(std::string_view name) const
+{
+	std::string str;
+	for (const Hotkey &hotkey : this->items) {
+		if (hotkey.name != name) continue;
+		for (uint16_t keycode : hotkey.keycodes) {
+			if (!str.empty()) str += ", ";
+			str += KeycodeToString(keycode & ~WKC_GLOBAL_HOTKEY);
+		}
+		break;
+	}
+	return str;
+}
+
+/** Get the configured keys for a global action shown in a window's menu. */
+std::string HotkeyList::GetGlobalDisplayString(std::string_view name)
+{
+	if (_hotkey_lists == nullptr) return {};
+	for (const HotkeyList *list : *_hotkey_lists) {
+		if (list->ini_group == "global") return list->GetDisplayString(name);
+	}
+	return {};
+}
+
 static void SaveLoadHotkeys(bool save)
 {
 	IniFile ini{};
