@@ -347,10 +347,31 @@ std::string HotkeyList::GetGlobalDisplayString(std::string_view name)
 	return {};
 }
 
+/** Update the old default close-window bindings once, preserving customized shortcuts. */
+static void MigrateWindowCloseHotkeys(IniFile &ini)
+{
+	IniGroup *group = ini.GetGroup("global");
+	if (group == nullptr || group->GetItem("close_last_window") != nullptr) return;
+
+	const std::tuple<std::string_view, uint16_t, std::string_view> defaults[] = {
+		{"delete_windows", WKC_DELETE, "CTRL+DEL"},
+		{"delete_all_windows", WKC_DELETE | WKC_SHIFT, "SHIFT+CTRL+DEL"},
+		{"delete_all_messages", WKC_DELETE | WKC_CTRL, ""},
+	};
+	for (const auto &[name, old_key, replacement] : defaults) {
+		const IniItem *item = group->GetItem(name);
+		if (item == nullptr || !item->value.has_value()) continue;
+		Hotkey hotkey(0, "", 0);
+		ParseHotkeys(hotkey, *item->value);
+		if (hotkey.keycodes == std::set<uint16_t>{old_key}) group->GetOrCreateItem(name).SetValue(replacement);
+	}
+}
+
 static void SaveLoadHotkeys(bool save)
 {
 	IniFile ini{};
 	ini.LoadFromDisk(_hotkeys_file, Subdirectory::None);
+	if (!save) MigrateWindowCloseHotkeys(ini);
 
 	for (HotkeyList *list : *_hotkey_lists) {
 		if (save) {

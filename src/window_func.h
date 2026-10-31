@@ -48,6 +48,7 @@ void InvalidateWindowClassesData(WindowClass cls, ConvertibleThroughBase auto da
 template <typename T> requires is_scoped_enum_v<T>
 void InvalidateWindowClassesData(WindowClass cls, T data, bool gui_scope = false) { InvalidateWindowClassesData(cls, to_underlying(data), gui_scope); }
 
+void CloseLastNonVitalWindow();
 void CloseNonVitalWindows();
 void CloseAllNonVitalWindows();
 void DeleteAllMessages();

@@ -55,6 +55,8 @@ static Window *_last_scroll_window = nullptr; ///< Window of the last scroll eve
 /** List of windows opened at the screen sorted from the front to back. */
 WindowList _z_windows;
 
+static std::vector<Window *> _window_open_order; ///< Live windows in creation order, independent of focus and z-order.
+
 /** List of closed windows to delete. */
 /* static */ std::vector<Window *> Window::closed_windows;
 
@@ -1130,6 +1132,7 @@ void Window::Close([[maybe_unused]] int data)
 	if (*this->z_position == nullptr) return;
 
 	*this->z_position = nullptr;
+	std::erase(_window_open_order, this);
 
 	if (_thd.window_class == this->window_class &&
 			_thd.window_number == this->window_number) {
@@ -1856,6 +1859,7 @@ void Window::InitNested(WindowNumber window_number)
 Window::Window(WindowDesc &desc) : window_desc(desc), scale(_gui_scale), mouse_capture_widget(INVALID_WIDGET)
 {
 	this->z_position = _z_windows.insert(_z_windows.end(), this);
+	_window_open_order.push_back(this);
 }
 
 /**
@@ -3388,8 +3392,19 @@ void CallWindowGameTickEvent()
 	}
 }
 
+/** Close the most recently opened closable, unpinned window. */
+void CloseLastNonVitalWindow()
+{
+	for (auto it = _window_open_order.rbegin(); it != _window_open_order.rend(); ++it) {
+		Window *w = *it;
+		if (w->window_desc.flags.Test(WindowDefaultFlag::NoClose) || w->flags.Test(WindowFlag::Sticky)) continue;
+		w->Close();
+		return;
+	}
+}
+
 /**
- * Try to close a non-vital window.
+ * Close all non-vital, unpinned windows.
  * Non-vital windows are windows other than the game selection, main toolbar,
  * status bar, toolbar menu, and tooltip windows. Stickied windows are also
  * considered vital.

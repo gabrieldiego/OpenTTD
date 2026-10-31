@@ -186,6 +186,7 @@ enum GlobalHotKeys : int32_t {
 	GHK_CENTER,
 	GHK_CENTER_ZOOM,
 	GHK_RESET_OBJECT_TO_PLACE,
+	GHK_CLOSE_LAST_WINDOW,
 	GHK_DELETE_WINDOWS,
 	GHK_DELETE_NONVITAL_WINDOWS,
 	GHK_DELETE_ALL_MESSAGES,
@@ -328,6 +329,7 @@ struct MainWindow : Window
 			}
 
 			case GHK_RESET_OBJECT_TO_PLACE: ResetObjectToPlace(); break;
+			case GHK_CLOSE_LAST_WINDOW: CloseLastNonVitalWindow(); break;
 			case GHK_DELETE_WINDOWS: CloseNonVitalWindows(); break;
 			case GHK_DELETE_NONVITAL_WINDOWS: CloseAllNonVitalWindows(); break;
 			case GHK_DELETE_ALL_MESSAGES: DeleteAllMessages(); break;
@@ -483,9 +485,10 @@ struct MainWindow : Window
 		Hotkey('C', "center", GHK_CENTER),
 		Hotkey('Z', "center_zoom", GHK_CENTER_ZOOM),
 		Hotkey(WKC_ESC, "reset_object_to_place", GHK_RESET_OBJECT_TO_PLACE),
-		Hotkey(WKC_DELETE, "delete_windows", GHK_DELETE_WINDOWS),
-		Hotkey(WKC_DELETE | WKC_SHIFT, "delete_all_windows", GHK_DELETE_NONVITAL_WINDOWS),
-		Hotkey(WKC_DELETE | WKC_CTRL, "delete_all_messages", GHK_DELETE_ALL_MESSAGES),
+		Hotkey(WKC_DELETE, "close_last_window", GHK_CLOSE_LAST_WINDOW),
+		Hotkey(WKC_DELETE | WKC_CTRL, "delete_windows", GHK_DELETE_WINDOWS),
+		Hotkey(WKC_DELETE | WKC_CTRL | WKC_SHIFT, "delete_all_windows", GHK_DELETE_NONVITAL_WINDOWS),
+		Hotkey(0, "delete_all_messages", GHK_DELETE_ALL_MESSAGES),
 		Hotkey('R' | WKC_CTRL, "refresh_screen", GHK_REFRESH_SCREEN),
 #if defined(_DEBUG)
 		Hotkey('0' | WKC_ALT, "crash_game", GHK_CRASH),
