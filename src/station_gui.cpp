@@ -1468,6 +1468,7 @@ struct StationViewWindow : public Window {
 		CloseWindowById(WindowClass::AircraftList, VehicleListIdentifier(VehicleListType::Station, VehicleType::Aircraft, this->owner, this->window_number).ToWindowNumber(), false);
 
 		SetViewportCatchmentStation(Station::Get(this->window_number), false);
+		if (IsStationCoveragePinned(Station::Get(this->window_number))) MarkCatchmentTilesDirty();
 		this->Window::Close();
 	}
 
@@ -2303,6 +2304,7 @@ static WindowDesc _station_view_desc(
 void ShowStationViewWindow(StationID station)
 {
 	AllocateWindowDescFront<StationViewWindow>(_station_view_desc, station);
+	if (IsStationCoveragePinned(Station::Get(station))) MarkCatchmentTilesDirty();
 }
 
 /** Struct containing TileIndex and StationID */

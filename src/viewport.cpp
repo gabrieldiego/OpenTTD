@@ -1045,7 +1045,8 @@ void ClearPinnedStationCoverage()
  */
 static TileHighlightType GetTileHighlightType(TileIndex t)
 {
-	if (IsTileType(t, TileType::Station) && _pinned_station_coverage.contains(GetStationIndex(t))) return TileHighlightType::White;
+	if (IsTileType(t, TileType::Station) && _pinned_station_coverage.contains(GetStationIndex(t)) &&
+			FindWindowById(WindowClass::StationView, GetStationIndex(t)) != nullptr) return TileHighlightType::White;
 	for (StationID id : _pinned_station_coverage) {
 		const Station *st = Station::GetIfValid(id);
 		if (st != nullptr && st->TileIsInCatchment(t)) return TileHighlightType::Blue;
