@@ -474,7 +474,18 @@ enum class MapMenuEntries : uint8_t {
 	ShowSignList, ///< Open sign list window.
 	ShowTownDirectory, ///< Open window with list of towns.
 	ShowIndustryDirectory, ///< Open window with list of industries.
+	CloseLastWindow, ///< Close the newest unpinned window.
+	CloseUnpinnedWindows, ///< Close all unpinned windows.
+	CloseAllWindows, ///< Close all windows, including pinned ones.
 };
+
+static void AddWindowCloseMenuItems(DropDownList &list)
+{
+	list.push_back(MakeDropDownListDividerItem());
+	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_CLOSE_LAST_WINDOW, MapMenuEntries::CloseLastWindow));
+	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_CLOSE_UNPINNED_WINDOWS, MapMenuEntries::CloseUnpinnedWindows));
+	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_CLOSE_ALL_WINDOWS, MapMenuEntries::CloseAllWindows));
+}
 
 static CallBackFunction ToolbarMapClick(Window *w)
 {
@@ -483,6 +494,7 @@ static CallBackFunction ToolbarMapClick(Window *w)
 	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_EXTRA_VIEWPORT, MapMenuEntries::ShowExtraViewport));
 	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_LINGRAPH_LEGEND, MapMenuEntries::ShowLinkGraph));
 	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_SIGN_LIST, MapMenuEntries::ShowSignList));
+	AddWindowCloseMenuItems(list);
 	PopupMainToolbarMenu(w, WID_TN_SMALL_MAP, std::move(list), 0);
 	return CallBackFunction::None;
 }
@@ -495,6 +507,7 @@ static CallBackFunction ToolbarScenMapTownDir(Window *w)
 	list.push_back(MakeDropDownListStringItem(STR_MAP_MENU_SIGN_LIST, MapMenuEntries::ShowSignList));
 	list.push_back(MakeDropDownListStringItem(STR_TOWN_MENU_TOWN_DIRECTORY, MapMenuEntries::ShowTownDirectory));
 	list.push_back(MakeDropDownListStringItem(STR_INDUSTRY_MENU_INDUSTRY_DIRECTORY, MapMenuEntries::ShowIndustryDirectory));
+	AddWindowCloseMenuItems(list);
 	PopupMainToolbarMenu(w, WID_TE_SMALL_MAP, std::move(list), 0);
 	return CallBackFunction::None;
 }
@@ -514,6 +527,9 @@ static CallBackFunction MenuClickMap(int index)
 		case MapMenuEntries::ShowSignList: ShowSignList(); break;
 		case MapMenuEntries::ShowTownDirectory: ShowTownDirectory(); break;
 		case MapMenuEntries::ShowIndustryDirectory: ShowIndustryDirectory(); break;
+		case MapMenuEntries::CloseLastWindow: CloseLastNonVitalWindow(); break;
+		case MapMenuEntries::CloseUnpinnedWindows: CloseNonVitalWindows(); break;
+		case MapMenuEntries::CloseAllWindows: CloseAllNonVitalWindows(); break;
 	}
 	return CallBackFunction::None;
 }
@@ -1397,6 +1413,9 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 		{WID_TE_SAVE, to_underlying(SaveLoadEditorMenuEntries::ExitGame), "quit", true},
 		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::ShowSmallMap), "smallmap"},
 		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::ShowExtraViewport), "extra_viewport"},
+		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::CloseLastWindow), "close_last_window", true},
+		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::CloseUnpinnedWindows), "delete_windows", true},
+		{WID_TE_SMALL_MAP, to_underlying(MapMenuEntries::CloseAllWindows), "delete_all_windows", true},
 		{WID_TE_ZOOM_IN, std::nullopt, "zoomin"},
 		{WID_TE_ZOOM_OUT, std::nullopt, "zoomout"},
 		{WID_TE_LAND_GENERATE, std::nullopt, "gen_land"},
@@ -1432,6 +1451,9 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::ShowSmallMap), "smallmap"},
 		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::ShowExtraViewport), "extra_viewport"},
 		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::ShowSignList), "sign_list"},
+		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::CloseLastWindow), "close_last_window", true},
+		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::CloseUnpinnedWindows), "delete_windows", true},
+		{WID_TN_SMALL_MAP, to_underlying(MapMenuEntries::CloseAllWindows), "delete_all_windows", true},
 		{WID_TN_TOWNS, to_underlying(TownMenuEntries::ShowDirectory), "town_list"},
 		{WID_TN_SUBSIDIES, 0, "subsidies"},
 		{WID_TN_STATIONS, _local_company.base(), "station_list"},
