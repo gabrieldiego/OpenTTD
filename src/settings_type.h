@@ -675,6 +675,7 @@ struct LinkGraphSettings {
 
 /** Settings related to stations. */
 struct StationSettings {
+	bool road_access_catchment = false; ///< New-game-only local and road-access catchment rules.
 	bool modified_catchment; ///< different-size catchment areas
 	bool serve_neutral_industries; ///< company stations can serve industries with attached neutral stations
 	bool distant_join_stations; ///< allow to join non-adjacent stations

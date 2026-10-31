@@ -40,6 +40,8 @@
 #include "landscape_cmd.h"
 #include "terraform_cmd.h"
 #include "station_func.h"
+#include "station_catchment.h"
+#include "road_map.h"
 #include "pathfinder/water_regions.h"
 #include "pathfinder/yapf/yapf_river_builder.h"
 
@@ -544,6 +546,7 @@ void DrawFoundation(TileInfo *ti, Foundation f)
 
 void DoClearSquare(TileIndex tile)
 {
+	if (MayHaveRoad(tile)) InvalidateStationRoadAccess(tile);
 	/* If the tile can have animation and we clear it, delete it from the animated tile list. */
 	if (MayAnimateTile(tile)) DeleteAnimatedTile(tile, true);
 

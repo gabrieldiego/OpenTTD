@@ -11,6 +11,7 @@
 #define RAIL_MAP_H
 
 #include "rail_type.h"
+#include "station_catchment.h"
 #include "depot_type.h"
 #include "signal_func.h"
 #include "track_func.h"
@@ -125,6 +126,7 @@ inline RailType GetRailType(Tile t)
 inline void SetRailType(Tile t, RailType r)
 {
 	SB(t.m8(), 0, 6, r);
+	InvalidateStationRoadAccess(TileIndex(t));
 }
 
 

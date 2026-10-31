@@ -20,6 +20,7 @@
 #include "core/pool_func.hpp"
 #include "station_base.h"
 #include "station_func.h"
+#include "station_catchment.h"
 #include "station_kdtree.h"
 #include "roadstop_base.h"
 #include "industry.h"
@@ -304,6 +305,19 @@ void Station::MarkTilesDirty(bool cargo_change) const
 	return length;
 }
 
+/** The access rule of an actual facility tile; water-side dock tiles have no road entrance. */
+static RoadCatchmentSource GetTileRoadCatchmentSource(TileIndex tile, const Station *st)
+{
+	StationType type = GetStationType(tile);
+	RoadCatchmentSource source = MakeRoadCatchmentSource(TileArea(tile, 1, 1), type,
+			type == StationType::Airport ? st->airport.GetSpec()->catchment : CA_UNMODIFIED,
+			type == StationType::Rail ? GetRailType(tile) : RAILTYPE_RAIL,
+			type == StationType::Dock && !IsDockWaterPart(tile) ? std::optional(GetDockDirection(tile)) : std::nullopt);
+	if (type == StationType::Dock && IsDockWaterPart(tile)) source.road_distance = 0;
+	if (type == StationType::Buoy || type == StationType::RailWaypoint || type == StationType::RoadWaypoint) source.local_radius = 0;
+	return source;
+}
+
 /**
  * Get the catchment size of an individual station tile.
  * @param tile Station tile to get catchment size of.
@@ -346,6 +360,14 @@ static uint GetTileCatchmentRadius(TileIndex tile, const Station *st)
 uint Station::GetCatchmentRadius() const
 {
 	uint ret = CA_NONE;
+	if (_settings_game.station.road_access_catchment) {
+		for (TileIndex tile : this->spread) {
+			if (!IsTileType(tile, TileType::Station) || GetStationIndex(tile) != this->index) continue;
+			auto source = GetTileRoadCatchmentSource(tile, this);
+			if (source.local_radius != 0) ret = std::max(ret, std::max(source.local_radius, source.road_distance + 1));
+		}
+		return ret;
+	}
 
 	if (_settings_game.station.modified_catchment) {
 		if (this->bus_stops != nullptr) ret = std::max<uint>(ret, CA_BUS);
@@ -472,18 +494,28 @@ void Station::RecomputeCatchment(bool no_clear_nearby_lists)
 		return;
 	}
 
-	this->catchment_tiles.Initialize(TileArea{this->spread}.Expand(this->GetCatchmentRadius()));
+	if (_settings_game.station.road_access_catchment) {
+		std::vector<RoadCatchmentSource> sources;
+		for (TileIndex tile : this->spread) {
+			if (!IsTileType(tile, TileType::Station) || GetStationIndex(tile) != this->index) continue;
+			auto source = GetTileRoadCatchmentSource(tile, this);
+			if (source.local_radius != 0) sources.push_back(source);
+		}
+		this->catchment_tiles = BuildRoadCatchment(sources);
+	} else {
+		this->catchment_tiles.Initialize(TileArea{this->spread}.Expand(this->GetCatchmentRadius()));
 
-	/* Loop finding all station tiles */
-	for (TileIndex tile : this->spread) {
-		if (!IsTileType(tile, TileType::Station) || GetStationIndex(tile) != this->index) continue;
+		/* Loop finding all station tiles */
+		for (TileIndex tile : this->spread) {
+			if (!IsTileType(tile, TileType::Station) || GetStationIndex(tile) != this->index) continue;
 
-		uint r = GetTileCatchmentRadius(tile, this);
-		if (r == CA_NONE) continue;
+			uint r = GetTileCatchmentRadius(tile, this);
+			if (r == CA_NONE) continue;
 
-		/* This tile sub-loop doesn't need to test any tiles, they are simply added to the catchment set. */
-		TileArea ta2 = TileArea(tile, 1, 1).Expand(r);
-		for (TileIndex tile2 : ta2) this->catchment_tiles.Add(tile2);
+			/* This tile sub-loop doesn't need to test any tiles, they are simply added to the catchment set. */
+			TileArea ta2 = TileArea(tile, 1, 1).Expand(r);
+			for (TileIndex tile2 : ta2) this->catchment_tiles.Add(tile2);
+		}
 	}
 
 	/* Search catchment tiles for towns and industries */
@@ -512,6 +544,7 @@ void Station::RecomputeCatchment(bool no_clear_nearby_lists)
  */
 /* static */ void Station::RecomputeCatchmentForAll()
 {
+	ResetStationRoadAccess();
 	for (Town *t : Town::Iterate()) { t->stations_near.clear(); }
 	for (Industry *i : Industry::Iterate()) { i->stations_near.clear(); }
 	for (Station *st : Station::Iterate()) { st->RecomputeCatchment(true); }

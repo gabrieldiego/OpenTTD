@@ -150,6 +150,7 @@ struct OPTSChunkHandler : ChunkHandler {
 		/* Copy over default setting since some might not get loaded in
 		 * a networking environment. This ensures for example that the local
 		 * autosave-frequency stays when joining a network-server */
+		_settings_game.station.road_access_catchment = false;
 		PrepareOldDiffCustom();
 		LoadSettings(_old_gameopt_settings, &_settings_game, _gameopt_sl_compat);
 		HandleOldDiffCustom(true);
@@ -161,6 +162,8 @@ struct PATSChunkHandler : ChunkHandler {
 
 	void Load() const override
 	{
+		/* Older table-based saves have no such field; never inherit the next-game preference. */
+		_settings_game.station.road_access_catchment = false;
 		LoadSettings(GetSaveLoadSettingTable(), &_settings_game, _settings_sl_compat);
 	}
 

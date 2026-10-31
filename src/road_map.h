@@ -16,6 +16,7 @@
 #include "road_func.h"
 #include "tile_map.h"
 #include "road_type.h"
+#include "station_catchment.h"
 
 
 /** The different types of road tiles. */
@@ -141,6 +142,7 @@ inline void SetRoadBits(Tile t, RoadBits r, RoadTramType rtt)
 		SB(t.m3(), 0, 4, r.base());
 	} else {
 		SB(t.m5(), 0, 4, r.base());
+		InvalidateStationRoadAccess(TileIndex(t));
 	}
 }
 
@@ -592,6 +594,7 @@ inline void SetRoadTypeRoad(Tile t, RoadType rt)
 	assert(MayHaveRoad(t));
 	assert(rt == INVALID_ROADTYPE || RoadTypeIsRoad(rt));
 	SB(t.m4(), 0, 6, rt);
+	InvalidateStationRoadAccess(TileIndex(t));
 }
 
 /**

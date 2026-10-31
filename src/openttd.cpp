@@ -8,6 +8,7 @@
 /** @file openttd.cpp Functions related to starting OpenTTD. */
 
 #include "stdafx.h"
+#include "station_catchment.h"
 
 #include "blitter/factory.hpp"
 #include "sound/sound_driver.hpp"
@@ -1196,6 +1197,7 @@ void SwitchToMode(SwitchMode new_mode)
  */
 void StateGameLoop()
 {
+	UpdateStationRoadAccess();
 	if (!_networking || _network_server) {
 		StateGameLoop_LinkGraphPauseControl();
 	}

@@ -19,6 +19,7 @@
 #include "linkgraph/linkgraph_type.h"
 #include "newgrf_storage.h"
 #include "tilearea_bitmap.h"
+#include "station_catchment.h"
 
 static const uint8_t INITIAL_STATION_RATING = 175;
 static const uint8_t MAX_STATION_RATING = 255;
@@ -630,7 +631,8 @@ void ForAllStationsAroundTiles(const TileArea &ta, Func func)
 
 	/* Scan an area around the building covering the maximum possible station
 	 * to find the possible nearby stations. */
-	uint max_c = _settings_game.station.modified_catchment ? MAX_CATCHMENT : CA_UNMODIFIED;
+	uint max_c = _settings_game.station.road_access_catchment ? GetMaximumRoadCatchmentRadius() :
+			_settings_game.station.modified_catchment ? MAX_CATCHMENT : CA_UNMODIFIED;
 	TileArea ta_ext = TileArea(ta).Expand(max_c);
 	for (TileIndex tile : ta_ext) {
 		if (!IsTileType(tile, TileType::Station)) continue;

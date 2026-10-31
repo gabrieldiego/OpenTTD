@@ -8,6 +8,7 @@
 /** @file command.cpp Handling of commands. */
 
 #include "stdafx.h"
+#include "station_catchment.h"
 #include "landscape.h"
 #include "error.h"
 #include "gui.h"
@@ -180,6 +181,7 @@ void CommandHelperBase::InternalDoAfter(CommandCost &res, DoCommandFlags flags, 
 			CheckCompanyHasMoney(res); // CheckCompanyHasMoney() modifies 'res' to an error if it fails.
 		}
 	} else {
+		if (top_level) UpdateStationRoadAccess();
 		/* If top-level, subtract the money. */
 		if (res.Succeeded() && top_level && !flags.Test(DoCommandFlag::Bankrupt)) {
 			SubtractMoneyFromCompany(_current_company, res);
@@ -383,6 +385,8 @@ CommandCost CommandHelperBase::InternalExecuteProcessResult(Commands cmd, Comman
 
 	/* Record if there was a command issues during pause; ignore pause/other setting related changes. */
 	if (_pause_mode.Any() && _command_table[cmd].type != CommandType::ServerSetting) _pause_mode.Set(PauseMode::CommandDuringPause);
+
+	UpdateStationRoadAccess();
 
 	/* update signals if needed */
 	UpdateSignalsInBuffer();

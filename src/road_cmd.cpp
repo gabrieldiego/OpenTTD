@@ -1178,6 +1178,7 @@ CommandCost CmdBuildRoadDepot(DoCommandFlags flags, TileIndex tile, RoadType rt,
 	if (flags.Test(DoCommandFlag::Execute)) {
 		if (rotate_existing_depot) {
 			SetRoadDepotExitDirection(tile, dir);
+			InvalidateStationRoadAccess(tile);
 		} else {
 			Depot *dep = Depot::Create(tile);
 			MakeRoadDepot(tile, _current_company, dep->index, dir, rt);
