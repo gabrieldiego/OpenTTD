@@ -99,5 +99,6 @@ void GenerateSavegameId();
 
 void OpenBrowser(const std::string &url);
 void ChangeAutosaveFrequency(bool reset);
+void RequestAutosave();
 
 #endif /* OPENTTD_H */

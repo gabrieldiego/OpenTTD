@@ -470,6 +470,7 @@ STR_SETTINGS_MENU_TRANSPARENT_SIGNS                             :Transparent sig
 
 # File menu
 STR_FILE_MENU_SAVE_GAME                                         :Save game
+STR_FILE_MENU_AUTOSAVE                                          :Autosave now
 STR_FILE_MENU_LOAD_GAME                                         :Load game
 STR_FILE_MENU_QUIT_GAME                                         :Abandon game
 STR_FILE_MENU_EXIT                                              :Exit

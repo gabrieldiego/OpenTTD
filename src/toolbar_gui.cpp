@@ -365,6 +365,7 @@ enum class SaveLoadEditorMenuEntries : uint8_t {
  */
 enum class SaveLoadNormalMenuEntries : uint8_t {
 	SaveGame = 0, ///< Save the game.
+	Autosave, ///< Create an autosave immediately.
 	LoadGame, ///< Load a save.
 	ExitToMainMenu, ///< Exit to main menu.
 	ExitGame, ///< Exit to desktop.
@@ -378,7 +379,7 @@ enum class SaveLoadNormalMenuEntries : uint8_t {
  */
 static CallBackFunction ToolbarSaveClick(Window *w)
 {
-	PopupMainToolbarMenu(w, WID_TN_SAVE, {STR_FILE_MENU_SAVE_GAME, STR_FILE_MENU_LOAD_GAME, STR_FILE_MENU_QUIT_GAME,
+	PopupMainToolbarMenu(w, WID_TN_SAVE, {STR_FILE_MENU_SAVE_GAME, STR_FILE_MENU_AUTOSAVE, STR_FILE_MENU_LOAD_GAME, STR_FILE_MENU_QUIT_GAME,
 			STR_NULL, STR_FILE_MENU_EXIT});
 	return CallBackFunction::None;
 }
@@ -417,6 +418,7 @@ static CallBackFunction MenuClickSaveLoad(int index = 0)
 	} else {
 		switch (SaveLoadNormalMenuEntries(index)) {
 			case SaveLoadNormalMenuEntries::SaveGame: ShowSaveLoadDialog(AbstractFileType::Savegame, SaveLoadOperation::Save); break;
+			case SaveLoadNormalMenuEntries::Autosave: RequestAutosave(); break;
 			case SaveLoadNormalMenuEntries::LoadGame: ShowSaveLoadDialog(AbstractFileType::Savegame, SaveLoadOperation::Load); break;
 			case SaveLoadNormalMenuEntries::ExitToMainMenu: AskExitToGameMenu(); break;
 			case SaveLoadNormalMenuEntries::ExitGame: HandleExitGameRequest(); break;
@@ -2055,6 +2057,7 @@ struct MainToolbarWindow : Window {
 			case MTHK_FASTFORWARD: ToolbarFastForwardClick(this); break;
 			case MTHK_SETTINGS: ShowGameOptions(); break;
 			case MTHK_SAVEGAME: MenuClickSaveLoad(); break;
+			case MTHK_AUTOSAVE: RequestAutosave(); break;
 			case MTHK_LOADGAME: ShowSaveLoadDialog(AbstractFileType::Savegame, SaveLoadOperation::Load); break;
 			case MTHK_SMALLMAP: ShowSmallMap(); break;
 			case MTHK_TOWNDIRECTORY: ShowTownDirectory(); break;
@@ -2146,6 +2149,7 @@ struct MainToolbarWindow : Window {
 		Hotkey(0, "fastforward", MTHK_FASTFORWARD),
 		Hotkey(WKC_F2, "settings", MTHK_SETTINGS),
 		Hotkey(WKC_F3, "saveload", MTHK_SAVEGAME),
+		Hotkey(WKC_CTRL | WKC_ALT | 'S', "autosave", MTHK_AUTOSAVE),
 		Hotkey(0, "load_game", MTHK_LOADGAME),
 		Hotkey({WKC_F4, 'M'}, "smallmap", MTHK_SMALLMAP),
 		Hotkey(WKC_F5, "town_list", MTHK_TOWNDIRECTORY),

@@ -1324,6 +1324,12 @@ void ChangeAutosaveFrequency(bool reset)
 	if (reset) _autosave_requested = false;
 }
 
+/** Request an autosave on the next game loop, even if automatic saves are off. */
+void RequestAutosave()
+{
+	if (_game_mode == GameMode::Normal) _autosave_requested = true;
+}
+
 /**
  * Request a new NewGRF scan. This will be executed on the next game-tick.
  * This is mostly needed to ensure NewGRF scans (which are blocking) are
