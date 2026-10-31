@@ -1921,6 +1921,7 @@ void UnInitWindowSystem()
  */
 void ResetWindowSystem()
 {
+	ClearPinnedStationCoverage();
 	UnInitWindowSystem();
 	InitWindowSystem();
 	_thd.Reset();

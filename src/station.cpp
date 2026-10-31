@@ -84,6 +84,7 @@ Station::Station(StationID index, TileIndex tile) :
  */
 Station::~Station()
 {
+	SetStationCoveragePinned(this, false);
 	if (CleaningPool()) {
 		for (GoodsEntry &ge : this->goods) {
 			if (!ge.HasData()) continue;

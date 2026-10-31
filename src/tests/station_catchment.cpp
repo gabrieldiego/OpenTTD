@@ -46,6 +46,7 @@ public:
 		for (const Station *st : Station::Iterate()) SetViewportCatchmentStation(st, false);
 		_station_pool.CleanPool();
 		_industry_pool.CleanPool();
+		ClearPinnedStationCoverage();
 		ResetStationRoadAccess();
 	}
 
@@ -271,6 +272,29 @@ TEST_CASE_METHOD(RoadCatchmentFixture, "Road catchment - industrial cargo links 
 	UpdateStationRoadAccess();
 	CHECK_FALSE(industry->stations_near.contains(st));
 	CHECK(st->industries_near.empty());
+}
+
+TEST_CASE_METHOD(RoadCatchmentFixture, "Road catchment - coverage pins survive deselection and clear with stations", "[station-catchment]")
+{
+	Station *first = RailStation();
+	Station *second = RailStation(30, 30);
+	CHECK_FALSE(IsStationCoveragePinned(first));
+	SetStationCoveragePinned(first, true);
+	SetStationCoveragePinned(second, true);
+	SetViewportCatchmentStation(first, true);
+	SetViewportCatchmentStation(first, false); // Station window closes.
+	CHECK(IsStationCoveragePinned(first));
+	CHECK(IsStationCoveragePinned(second));
+	SetStationCoveragePinned(first, false);
+	CHECK_FALSE(IsStationCoveragePinned(first));
+	CHECK(IsStationCoveragePinned(second));
+	ClearPinnedStationCoverage();
+	CHECK_FALSE(IsStationCoveragePinned(second));
+	StationID id = first->index;
+	SetStationCoveragePinned(first, true);
+	_station_pool.CleanPool();
+	Station *replacement = Station::CreateAtIndex(id, TileXY(10, 10));
+	CHECK_FALSE(IsStationCoveragePinned(replacement));
 }
 
 TEST_CASE("Road catchment - setting defaults off and locks after game creation", "[station-catchment]")

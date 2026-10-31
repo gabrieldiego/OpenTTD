@@ -1018,6 +1018,26 @@ const Waypoint *_viewport_highlight_waypoint; ///< Currently selected waypoint f
 const Waypoint *_viewport_highlight_waypoint_rect; ///< Currently selected waypoint for rectangle highlight
 const Town *_viewport_highlight_town; ///< Currently selected town for coverage area highlight
 
+static FlatSet<StationID> _pinned_station_coverage;
+
+bool IsStationCoveragePinned(const Station *st) { return _pinned_station_coverage.contains(st->index); }
+
+void SetStationCoveragePinned(const Station *st, bool pinned)
+{
+	if (pinned == IsStationCoveragePinned(st)) return;
+	if (pinned) _pinned_station_coverage.insert(st->index);
+	else _pinned_station_coverage.erase(st->index);
+	SetWindowDirty(WindowClass::StationView, st->index);
+	MarkWholeScreenDirty();
+}
+
+void ClearPinnedStationCoverage()
+{
+	if (_pinned_station_coverage.empty()) return;
+	_pinned_station_coverage.clear();
+	MarkWholeScreenDirty();
+}
+
 /**
  * Get tile highlight type of coverage area for a given tile.
  * @param t Tile that is being drawn
@@ -1025,6 +1045,11 @@ const Town *_viewport_highlight_town; ///< Currently selected town for coverage 
  */
 static TileHighlightType GetTileHighlightType(TileIndex t)
 {
+	if (IsTileType(t, TileType::Station) && _pinned_station_coverage.contains(GetStationIndex(t))) return TileHighlightType::White;
+	for (StationID id : _pinned_station_coverage) {
+		const Station *st = Station::GetIfValid(id);
+		if (st != nullptr && st->TileIsInCatchment(t)) return TileHighlightType::Blue;
+	}
 	if (const BitmapTileArea *preview = GetStationCoveragePreview(); preview != nullptr && preview->Contains(t)) return TileHighlightType::Blue;
 	if (_viewport_highlight_station != nullptr) {
 		if (IsTileType(t, TileType::Station) && GetStationIndex(t) == _viewport_highlight_station->index) return TileHighlightType::White;
@@ -3668,6 +3693,7 @@ CommandCost CmdScrollViewport(DoCommandFlags flags, TileIndex tile, ViewportScro
 
 void MarkCatchmentTilesDirty()
 {
+	if (!_pinned_station_coverage.empty()) MarkWholeScreenDirty();
 	if (_viewport_highlight_town != nullptr) {
 		MarkWholeScreenDirty();
 		return;

@@ -6084,3 +6084,4 @@ STR_BADGE_FILTER_ANY_LABEL                                      :Any {STRING}
 # Road-access station catchment
 STR_CONFIG_SETTING_ROAD_ACCESS_CATCHMENT                         :Road-access station coverage: {STRING2}
 STR_CONFIG_SETTING_ROAD_ACCESS_CATCHMENT_HELPTEXT                 :Use two-tile local coverage and connected-road access for all cargo. Road stops have a fixed four-tile catchment. Train road budgets are 6 for rail/electrified rail, 7 for monorail and 9 for maglev; other facilities use their usual catchment plus 2. Docks require an inland road entrance. This setting can only be selected before starting a game.
+STR_TOOLTIP_PIN_CATCHMENT                                       :Keep this station's coverage highlighted after closing its window

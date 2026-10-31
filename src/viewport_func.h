@@ -103,6 +103,9 @@ struct Station;
 struct Waypoint;
 struct Town;
 
+bool IsStationCoveragePinned(const Station *st);
+void SetStationCoveragePinned(const Station *st, bool pinned);
+void ClearPinnedStationCoverage();
 void SetViewportCatchmentStation(const Station *st, bool sel);
 void SetViewportStationRect(const Station *st, bool sel);
 void SetViewportCatchmentWaypoint(const Waypoint *wp, bool sel);

@@ -44,6 +44,7 @@
 #include "widgets/misc_widget.h"
 
 #include "table/strings.h"
+#include "table/sprites.h"
 
 #include "dropdown_common_type.h"
 
@@ -936,7 +937,10 @@ static constexpr std::initializer_list<NWidgetPart> _nested_station_view_widgets
 			NWidget(WWT_TEXTBTN, Colours::Grey, WID_SV_CLOSE_AIRPORT), SetMinimalSize(45, 12), SetResize(1, 0), SetFill(1, 1),
 					SetStringTip(STR_STATION_VIEW_CLOSE_AIRPORT, STR_STATION_VIEW_CLOSE_AIRPORT_TOOLTIP),
 		EndContainer(),
-		NWidget(WWT_TEXTBTN, Colours::Grey, WID_SV_CATCHMENT), SetMinimalSize(45, 12), SetResize(1, 0), SetFill(1, 1), SetStringTip(STR_BUTTON_CATCHMENT, STR_TOOLTIP_CATCHMENT),
+		NWidget(NWID_HORIZONTAL),
+			NWidget(WWT_TEXTBTN, Colours::Grey, WID_SV_CATCHMENT), SetMinimalSize(45, 12), SetResize(1, 0), SetFill(1, 1), SetStringTip(STR_BUTTON_CATCHMENT, STR_TOOLTIP_CATCHMENT),
+			NWidget(WWT_IMGBTN, Colours::Grey, WID_SV_CATCHMENT_PIN), SetMinimalSize(12, 12), SetFill(0, 1), SetSpriteTip(SPR_PIN_DOWN, STR_TOOLTIP_PIN_CATCHMENT),
+		EndContainer(),
 		NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_SV_TRAINS), SetAspect(WidgetDimensions::ASPECT_VEHICLE_ICON), SetFill(0, 1), SetStringTip(STR_TRAIN, STR_STATION_VIEW_SCHEDULED_TRAINS_TOOLTIP),
 		NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_SV_ROADVEHS), SetAspect(WidgetDimensions::ASPECT_VEHICLE_ICON), SetFill(0, 1), SetStringTip(STR_LORRY, STR_STATION_VIEW_SCHEDULED_ROAD_VEHICLES_TOOLTIP),
 		NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_SV_SHIPS), SetAspect(WidgetDimensions::ASPECT_VEHICLE_ICON), SetFill(0, 1), SetStringTip(STR_SHIP, STR_STATION_VIEW_SCHEDULED_SHIPS_TOOLTIP),
@@ -1539,7 +1543,10 @@ struct StationViewWindow : public Window {
 
 		extern const Station *_viewport_highlight_station;
 		this->SetWidgetDisabledState(WID_SV_CATCHMENT, st->facilities.None());
-		this->SetWidgetLoweredState(WID_SV_CATCHMENT, _viewport_highlight_station == st);
+		this->SetWidgetLoweredState(WID_SV_CATCHMENT, _viewport_highlight_station == st || IsStationCoveragePinned(st));
+		this->SetWidgetDisabledState(WID_SV_CATCHMENT_PIN, st->facilities.None());
+		this->SetWidgetLoweredState(WID_SV_CATCHMENT_PIN, IsStationCoveragePinned(st));
+		this->GetWidget<NWidgetCore>(WID_SV_CATCHMENT_PIN)->SetSprite(IsStationCoveragePinned(st) ? SPR_PIN_UP : SPR_PIN_DOWN);
 
 		this->DrawWidgets();
 
@@ -2065,7 +2072,15 @@ struct StationViewWindow : public Window {
 				this->HandleCargoWaitingClick(this->vscroll->GetScrolledRowFromWidget(pt.y, this, WID_SV_WAITING, WidgetDimensions::scaled.framerect.top) - this->vscroll->GetPosition());
 				break;
 
+			case WID_SV_CATCHMENT_PIN: {
+				Station *st = Station::Get(this->window_number);
+				SetStationCoveragePinned(st, !IsStationCoveragePinned(st));
+				SetViewportCatchmentStation(st, true);
+				break;
+			}
+
 			case WID_SV_CATCHMENT:
+				if (this->IsWidgetLowered(WID_SV_CATCHMENT)) SetStationCoveragePinned(Station::Get(this->window_number), false);
 				SetViewportCatchmentStation(Station::Get(this->window_number), !this->IsWidgetLowered(WID_SV_CATCHMENT));
 
 				if (w != nullptr && this->IsWidgetLowered(WID_SV_CATCHMENT)) {
