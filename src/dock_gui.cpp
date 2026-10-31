@@ -448,9 +448,8 @@ public:
 		Rect r = this->GetWidget<NWidgetBase>(WID_BDSW_ACCEPTANCE)->GetCurrentRect();
 		const int bottom = r.bottom;
 		r.bottom = INT_MAX; // Allow overflow as we want to know the required height.
-		auto road_source = MakeStationCoveragePreviewSource(StationType::Dock, CA_UNMODIFIED, RAILTYPE_RAIL);
-		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false, &road_source) + WidgetDimensions::scaled.vsep_normal;
-		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true, &road_source);
+		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false) + WidgetDimensions::scaled.vsep_normal;
+		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true);
 		/* Resize background if the window is too small.
 		 * Never make the window smaller to avoid oscillating if the size change affects the acceptance.
 		 * (This is the case, if making the window bigger moves the mouse into the window.) */
@@ -476,7 +475,8 @@ public:
 
 	void OnRealtimeTick([[maybe_unused]] uint delta_ms) override
 	{
-		CheckRedrawStationCoverage(this);
+		auto road_source = MakeStationCoveragePreviewSource(StationType::Dock, CA_UNMODIFIED, RAILTYPE_RAIL);
+		CheckRedrawStationCoverage(this, &road_source);
 	}
 
 	const IntervalTimer<TimerGameCalendar> yearly_interval = {{TimerGameCalendar::Trigger::Year, TimerGameCalendar::Priority::None}, [this](auto) {

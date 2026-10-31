@@ -76,6 +76,7 @@ using RoadWaypointTypeFilter = GenericWaypointTypeFilter<true, TileType::Road>;
 static BitmapTileArea _road_coverage_preview;
 static std::optional<RoadCatchmentSource> _road_preview_source;
 static uint64_t _road_preview_revision = 0;
+static bool _road_preview_show_coverage = false;
 
 RoadCatchmentSource MakeStationCoveragePreviewSource(StationType type, uint airport_catchment, RailType railtype)
 {
@@ -104,18 +105,19 @@ void ClearStationCoveragePreview()
 	MarkWholeScreenDirty();
 }
 
-static const BitmapTileArea &UpdateRoadCoveragePreview(const RoadCatchmentSource &source)
+static void UpdateRoadCoveragePreview(const RoadCatchmentSource &source)
 {
 	if (!_road_preview_source.has_value() || _road_preview_source->area.tile != source.area.tile ||
 			_road_preview_source->area.w != source.area.w || _road_preview_source->area.h != source.area.h ||
 			_road_preview_source->local_radius != source.local_radius || _road_preview_source->road_distance != source.road_distance ||
-			_road_preview_source->dock_direction != source.dock_direction || _road_preview_revision != GetStationRoadAccessRevision()) {
+			_road_preview_source->dock_direction != source.dock_direction || _road_preview_revision != GetStationRoadAccessRevision() ||
+			_road_preview_show_coverage != _settings_client.gui.station_show_coverage) {
 		_road_coverage_preview = BuildRoadCatchment(std::span(&source, 1), &source.area);
 		_road_preview_source = source;
 		_road_preview_revision = GetStationRoadAccessRevision();
+		_road_preview_show_coverage = _settings_client.gui.station_show_coverage;
 		MarkWholeScreenDirty();
 	}
-	return _road_coverage_preview;
 }
 
 /**
@@ -124,20 +126,19 @@ static const BitmapTileArea &UpdateRoadCoveragePreview(const RoadCatchmentSource
  * @param sct which type of cargo is to be displayed (passengers/non-passengers)
  * @param rad radius around selected tile(s) to be searched
  * @param supplies if supplied cargoes should be drawn, else accepted cargoes
- * @param source Road-access preview rule, when enabled.
  * @return Returns the y value below the string that was drawn
  */
-int DrawStationCoverageAreaText(const Rect &r, StationCoverageType sct, int rad, bool supplies, const RoadCatchmentSource *source)
+int DrawStationCoverageAreaText(const Rect &r, StationCoverageType sct, int rad, bool supplies)
 {
 	TileIndex tile = TileVirtXY(_thd.pos.x, _thd.pos.y);
 	CargoTypes cargo_mask{};
 	if (_thd.drawstyle == HT_RECT && tile < Map::Size()) {
 		CargoArray cargoes;
-		if (_settings_game.station.road_access_catchment && source != nullptr) {
+		if (_settings_game.station.road_access_catchment) {
 			cargoes.fill(0);
 			CargoTypes always_accepted;
 			FlatSet<IndustryID> industries;
-			for (TileIndex covered : UpdateRoadCoveragePreview(*source)) {
+			for (TileIndex covered : _road_coverage_preview) {
 				if (!_settings_game.station.serve_neutral_industries && IsTileType(covered, TileType::Industry) && Industry::GetByTile(covered)->neutral_station != nullptr) continue;
 				if (!supplies) AddAcceptedCargo(covered, cargoes, always_accepted);
 				else {
@@ -227,11 +228,17 @@ void FindStationsAroundSelection()
  * Check whether we need to redraw the station coverage text.
  * If it is needed actually make the window for redrawing.
  * @param w the window to check.
+ * @param source Road-access preview rule for the current selection, if available.
  */
-void CheckRedrawStationCoverage(const Window *w)
+void CheckRedrawStationCoverage(const Window *w, const RoadCatchmentSource *source)
 {
-	if (!_settings_client.gui.station_show_coverage || _thd.drawstyle != HT_RECT) ClearStationCoveragePreview();
 	if (_road_preview_source.has_value() && _road_preview_revision != GetStationRoadAccessRevision()) w->SetDirty();
+	/* Update before viewport drawing; invalidations made during OnPaint may be lost. */
+	if (_settings_game.station.road_access_catchment && _thd.drawstyle == HT_RECT && source != nullptr) {
+		UpdateRoadCoveragePreview(*source);
+	} else {
+		ClearStationCoveragePreview();
+	}
 	/* Test if ctrl state changed */
 	static bool _last_ctrl_pressed;
 	if (_ctrl_pressed != _last_ctrl_pressed) {

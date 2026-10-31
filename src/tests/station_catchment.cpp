@@ -21,6 +21,9 @@
 #include "../settings_internal.h"
 #include "../station_base.h"
 #include "../station_catchment.h"
+#include "../station_gui.h"
+#include "../tilehighlight_func.h"
+#include "../window_gui.h"
 #include "../tunnelbridge_map.h"
 #include "../viewport_func.h"
 
@@ -312,4 +315,58 @@ TEST_CASE("Road catchment - setting defaults off and locks after game creation",
 	CHECK_FALSE(setting->IsEditable(true));
 	_game_mode = GameMode::Editor;
 	CHECK_FALSE(setting->IsEditable());
+}
+
+
+TEST_CASE_METHOD(RoadCatchmentFixture, "Road catchment - construction preview updates before painting", "[station-catchment]")
+{
+	AutoRestoreBackup highlight(_thd);
+	AutoRestoreBackup show_coverage(_settings_client.gui.station_show_coverage, true);
+	_settings_game.station.road_access_catchment = true;
+	WindowDesc desc(WindowPosition::Manual, "", 0, 0, WindowClass::BuildStation, WindowClass::None, {}, {});
+	auto close_window = [](Window *w) {
+		ClearStationCoveragePreview();
+		_thd.window_class = WindowClass::Invalid;
+		w->Close();
+		Window::DeleteClosedWindows();
+	};
+	std::unique_ptr<Window, decltype(close_window)> window(new Window(desc), close_window);
+	window->window_class = WindowClass::BuildStation;
+	_thd = {};
+	_thd.window_class = WindowClass::BuildStation;
+	_thd.drawstyle = HT_RECT;
+	_thd.size = {TILE_SIZE, TILE_SIZE};
+	_thd.pos = {10 * TILE_SIZE, 10 * TILE_SIZE};
+	for (uint x = 11; x <= 20; ++x) Road(x, 10);
+	auto source = MakeStationCoveragePreviewSource(StationType::Rail);
+	CheckRedrawStationCoverage(window.get(), &source);
+	REQUIRE(GetStationCoveragePreview() != nullptr);
+	CHECK(GetStationCoveragePreview()->Contains(TileXY(16, 11)));
+
+	// Moving must replace both the local area and road extension before any OnPaint call.
+	_thd.pos = {30 * TILE_SIZE, 30 * TILE_SIZE};
+	source = MakeStationCoveragePreviewSource(StationType::Rail);
+	CheckRedrawStationCoverage(window.get(), &source);
+	REQUIRE(GetStationCoveragePreview() != nullptr);
+	CHECK_FALSE(GetStationCoveragePreview()->Contains(TileXY(10, 10)));
+	CHECK_FALSE(GetStationCoveragePreview()->Contains(TileXY(16, 11)));
+	CHECK(GetStationCoveragePreview()->Contains(TileXY(30, 30)));
+
+	_settings_client.gui.station_show_coverage = false;
+	CheckRedrawStationCoverage(window.get(), &source);
+	CHECK(GetStationCoveragePreview() == nullptr);
+	_settings_client.gui.station_show_coverage = true;
+	CheckRedrawStationCoverage(window.get(), &source);
+	REQUIRE(GetStationCoveragePreview() != nullptr);
+	CHECK(GetStationCoveragePreview()->Contains(TileXY(30, 30)));
+
+	_thd.pos = {10 * TILE_SIZE, 10 * TILE_SIZE};
+	source = MakeStationCoveragePreviewSource(StationType::Rail);
+	CheckRedrawStationCoverage(window.get(), &source);
+	DoClearSquare(TileXY(13, 10));
+	CheckRedrawStationCoverage(window.get(), &source);
+	CHECK_FALSE(GetStationCoveragePreview()->Contains(TileXY(16, 11)));
+	_thd.drawstyle = HT_NONE; // Leaving the viewport or cancelling construction clears the preview.
+	CheckRedrawStationCoverage(window.get(), &source);
+	CHECK(GetStationCoveragePreview() == nullptr);
 }

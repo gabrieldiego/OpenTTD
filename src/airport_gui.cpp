@@ -452,9 +452,8 @@ public:
 
 			/* strings such as 'Size' and 'Coverage Area' */
 			r.top = DrawBadgeNameList(r, as->badges, GrfSpecFeature::Airports) + WidgetDimensions::scaled.vsep_normal;
-			auto road_source = MakeStationCoveragePreviewSource(StationType::Airport, as->catchment, RAILTYPE_RAIL);
-			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false, &road_source) + WidgetDimensions::scaled.vsep_normal;
-			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true, &road_source);
+			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false) + WidgetDimensions::scaled.vsep_normal;
+			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true);
 		}
 
 		/* Resize background if the window is too small.
@@ -581,7 +580,13 @@ public:
 
 	void OnRealtimeTick([[maybe_unused]] uint delta_ms) override
 	{
-		CheckRedrawStationCoverage(this);
+		if (_selected_airport_index == -1) {
+			CheckRedrawStationCoverage(this);
+			return;
+		}
+		const AirportSpec *as = AirportClass::Get(_selected_airport_class)->GetSpec(_selected_airport_index);
+		auto road_source = MakeStationCoveragePreviewSource(StationType::Airport, as->catchment, RAILTYPE_RAIL);
+		CheckRedrawStationCoverage(this, &road_source);
 	}
 
 	const IntervalTimer<TimerGameCalendar> yearly_interval = {{TimerGameCalendar::Trigger::Year, TimerGameCalendar::Priority::None}, [this](auto) {
