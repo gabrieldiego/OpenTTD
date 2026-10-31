@@ -1464,7 +1464,7 @@ public:
 
 		this->DrawWidgets();
 
-		int rad = _settings_game.station.modified_catchment ? ((this->window_class == WindowClass::BuildBusStation) ? CA_BUS : CA_TRUCK) : CA_UNMODIFIED;
+		int rad = _settings_game.station.road_access_catchment ? 0 : _settings_game.station.modified_catchment ? ((this->window_class == WindowClass::BuildBusStation) ? CA_BUS : CA_TRUCK) : CA_UNMODIFIED;
 		if (_settings_client.gui.station_show_coverage) {
 			SetTileSelectBigSize(-rad, -rad, 2 * rad, 2 * rad);
 		} else {
@@ -1479,8 +1479,9 @@ public:
 		const int bottom = r.bottom;
 		r.bottom = INT_MAX; // Allow overflow as we want to know the required height.
 		if (spec != nullptr) r.top = DrawBadgeNameList(r, spec->badges, GrfSpecFeature::RoadStops);
-		r.top = DrawStationCoverageAreaText(r, sct, rad, false) + WidgetDimensions::scaled.vsep_normal;
-		r.top = DrawStationCoverageAreaText(r, sct, rad, true);
+		auto road_source = MakeStationCoveragePreviewSource(this->window_class == WindowClass::BuildBusStation ? StationType::Bus : StationType::Truck, CA_UNMODIFIED, RAILTYPE_RAIL);
+		r.top = DrawStationCoverageAreaText(r, sct, rad, false, &road_source) + WidgetDimensions::scaled.vsep_normal;
+		r.top = DrawStationCoverageAreaText(r, sct, rad, true, &road_source);
 		/* Resize background if the window is too small.
 		 * Never make the window smaller to avoid oscillating if the size change affects the acceptance.
 		 * (This is the case, if making the window bigger moves the mouse into the window.) */

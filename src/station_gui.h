@@ -10,6 +10,8 @@
 #ifndef STATION_GUI_H
 #define STATION_GUI_H
 
+#include "station_catchment.h"
+
 #include "core/geometry_type.hpp"
 #include "tilearea_orthogonal.h"
 #include "window_type.h"
@@ -23,7 +25,10 @@ enum StationCoverageType : uint8_t {
 	SCT_ALL,                 ///< Draw all cargoes.
 };
 
-int DrawStationCoverageAreaText(const Rect &r, StationCoverageType sct, int rad, bool supplies);
+RoadCatchmentSource MakeStationCoveragePreviewSource(StationType type, uint airport_catchment = CA_UNMODIFIED, RailType railtype = RAILTYPE_RAIL);
+const BitmapTileArea *GetStationCoveragePreview();
+void ClearStationCoveragePreview();
+int DrawStationCoverageAreaText(const Rect &r, StationCoverageType sct, int rad, bool supplies, const RoadCatchmentSource *source = nullptr);
 void CheckRedrawStationCoverage(const Window *w);
 void CheckRedrawRailWaypointCoverage(const Window *w);
 void CheckRedrawRoadWaypointCoverage(const Window *w);

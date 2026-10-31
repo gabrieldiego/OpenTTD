@@ -37,6 +37,8 @@
 #include "linkgraph/linkgraph.h"
 #include "zoom_func.h"
 #include "station_cmd.h"
+#include "industry.h"
+#include "landscape.h"
 
 #include "widgets/station_widget.h"
 #include "widgets/misc_widget.h"
@@ -70,21 +72,86 @@ struct GenericWaypointTypeFilter
 using RailWaypointTypeFilter = GenericWaypointTypeFilter<false, TileType::Railway>;
 using RoadWaypointTypeFilter = GenericWaypointTypeFilter<true, TileType::Road>;
 
+static BitmapTileArea _road_coverage_preview;
+static std::optional<RoadCatchmentSource> _road_preview_source;
+static uint64_t _road_preview_revision = 0;
+
+RoadCatchmentSource MakeStationCoveragePreviewSource(StationType type, uint airport_catchment, RailType railtype)
+{
+	if (!_settings_game.station.road_access_catchment) return {{}, 0, 0, std::nullopt};
+	TileArea area(TileVirtXY(_thd.pos.x, _thd.pos.y), _thd.size.x / TILE_SIZE, _thd.size.y / TILE_SIZE);
+	auto source = MakeRoadCatchmentSource(area, type, airport_catchment, railtype);
+	if (type == StationType::Dock) {
+		Point pt = GetTileBelowCursor();
+		DiagDirection uphill = pt.x == -1 ? DiagDirection::Invalid : GetInclinedSlopeDirection(GetTileSlope(TileVirtXY(pt.x, pt.y)));
+		if (IsValidDiagDirection(uphill)) source.dock_direction = ReverseDiagDir(uphill);
+		else source.road_distance = 0;
+	}
+	return source;
+}
+
+const BitmapTileArea *GetStationCoveragePreview()
+{
+	return _settings_game.station.road_access_catchment && _settings_client.gui.station_show_coverage && _thd.drawstyle == HT_RECT && _road_preview_source.has_value() && _thd.GetCallbackWnd() != nullptr ? &_road_coverage_preview : nullptr;
+}
+
+void ClearStationCoveragePreview()
+{
+	if (!_road_preview_source.has_value()) return;
+	_road_preview_source.reset();
+	_road_coverage_preview.Clear();
+	MarkWholeScreenDirty();
+}
+
+static const BitmapTileArea &UpdateRoadCoveragePreview(const RoadCatchmentSource &source)
+{
+	if (!_road_preview_source.has_value() || _road_preview_source->area.tile != source.area.tile ||
+			_road_preview_source->area.w != source.area.w || _road_preview_source->area.h != source.area.h ||
+			_road_preview_source->local_radius != source.local_radius || _road_preview_source->road_distance != source.road_distance ||
+			_road_preview_source->dock_direction != source.dock_direction || _road_preview_revision != GetStationRoadAccessRevision()) {
+		_road_coverage_preview = BuildRoadCatchment(std::span(&source, 1), &source.area);
+		_road_preview_source = source;
+		_road_preview_revision = GetStationRoadAccessRevision();
+		MarkWholeScreenDirty();
+	}
+	return _road_coverage_preview;
+}
+
 /**
  * Calculates and draws the accepted or supplied cargo around the selected tile(s)
  * @param r Rect where the string is to be drawn.
  * @param sct which type of cargo is to be displayed (passengers/non-passengers)
  * @param rad radius around selected tile(s) to be searched
  * @param supplies if supplied cargoes should be drawn, else accepted cargoes
+ * @param source Road-access preview rule, when enabled.
  * @return Returns the y value below the string that was drawn
  */
-int DrawStationCoverageAreaText(const Rect &r, StationCoverageType sct, int rad, bool supplies)
+int DrawStationCoverageAreaText(const Rect &r, StationCoverageType sct, int rad, bool supplies, const RoadCatchmentSource *source)
 {
 	TileIndex tile = TileVirtXY(_thd.pos.x, _thd.pos.y);
 	CargoTypes cargo_mask{};
 	if (_thd.drawstyle == HT_RECT && tile < Map::Size()) {
 		CargoArray cargoes;
-		if (supplies) {
+		if (_settings_game.station.road_access_catchment && source != nullptr) {
+			cargoes.fill(0);
+			CargoTypes always_accepted;
+			FlatSet<IndustryID> industries;
+			for (TileIndex covered : UpdateRoadCoveragePreview(*source)) {
+				if (!_settings_game.station.serve_neutral_industries && IsTileType(covered, TileType::Industry) && Industry::GetByTile(covered)->neutral_station != nullptr) continue;
+				if (!supplies) AddAcceptedCargo(covered, cargoes, always_accepted);
+				else {
+					AddProducedCargo(covered, cargoes);
+					if (IsTileType(covered, TileType::Industry)) industries.insert(GetIndustryIndex(covered));
+				}
+			}
+			if (supplies) {
+				for (IndustryID id : industries) {
+					for (const auto &produced : Industry::Get(id)->produced) {
+						if (IsValidCargoType(produced.cargo)) cargoes[produced.cargo]++;
+					}
+				}
+			}
+		} else if (supplies) {
 			cargoes = GetProductionAroundTiles(tile, _thd.size.x / TILE_SIZE, _thd.size.y / TILE_SIZE, rad);
 		} else {
 			cargoes = GetAcceptanceAroundTiles(tile, _thd.size.x / TILE_SIZE, _thd.size.y / TILE_SIZE, rad).first;
@@ -162,6 +229,8 @@ void FindStationsAroundSelection()
  */
 void CheckRedrawStationCoverage(const Window *w)
 {
+	if (!_settings_client.gui.station_show_coverage || _thd.drawstyle != HT_RECT) ClearStationCoveragePreview();
+	if (_road_preview_source.has_value() && _road_preview_revision != GetStationRoadAccessRevision()) w->SetDirty();
 	/* Test if ctrl state changed */
 	static bool _last_ctrl_pressed;
 	if (_ctrl_pressed != _last_ctrl_pressed) {

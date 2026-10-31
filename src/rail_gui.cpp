@@ -1202,7 +1202,7 @@ public:
 			}
 		}
 
-		int rad = (_settings_game.station.modified_catchment) ? CA_TRAIN : CA_UNMODIFIED;
+		int rad = _settings_game.station.road_access_catchment ? 0 : (_settings_game.station.modified_catchment) ? CA_TRAIN : CA_UNMODIFIED;
 
 		if (_settings_client.gui.station_show_coverage) SetTileSelectBigSize(-rad, -rad, 2 * rad, 2 * rad);
 
@@ -1225,8 +1225,9 @@ public:
 		const int bottom = r.bottom;
 		r.bottom = INT_MAX; // Allow overflow as we want to know the required height.
 		if (statspec != nullptr) r.top = DrawBadgeNameList(r, statspec->badges, GrfSpecFeature::Stations);
-		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false) + WidgetDimensions::scaled.vsep_normal;
-		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true);
+		auto road_source = MakeStationCoveragePreviewSource(StationType::Rail, CA_UNMODIFIED, _last_built_railtype);
+		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false, &road_source) + WidgetDimensions::scaled.vsep_normal;
+		r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true, &road_source);
 		/* Resize background if the window is too small.
 		 * Never make the window smaller to avoid oscillating if the size change affects the acceptance.
 		 * (This is the case, if making the window bigger moves the mouse into the window.) */

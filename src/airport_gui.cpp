@@ -435,7 +435,7 @@ public:
 
 		if (_selected_airport_index != -1) {
 			const AirportSpec *as = AirportClass::Get(_selected_airport_class)->GetSpec(_selected_airport_index);
-			int rad = _settings_game.station.modified_catchment ? as->catchment : (uint)CA_UNMODIFIED;
+			int rad = _settings_game.station.road_access_catchment ? 0 : _settings_game.station.modified_catchment ? as->catchment : (uint)CA_UNMODIFIED;
 
 			/* only show the station (airport) noise, if the noise option is activated */
 			if (_settings_game.economy.station_noise_level) {
@@ -452,8 +452,9 @@ public:
 
 			/* strings such as 'Size' and 'Coverage Area' */
 			r.top = DrawBadgeNameList(r, as->badges, GrfSpecFeature::Airports) + WidgetDimensions::scaled.vsep_normal;
-			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false) + WidgetDimensions::scaled.vsep_normal;
-			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true);
+			auto road_source = MakeStationCoveragePreviewSource(StationType::Airport, as->catchment, RAILTYPE_RAIL);
+			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, false, &road_source) + WidgetDimensions::scaled.vsep_normal;
+			r.top = DrawStationCoverageAreaText(r, SCT_ALL, rad, true, &road_source);
 		}
 
 		/* Resize background if the window is too small.
@@ -492,7 +493,7 @@ public:
 			this->SetWidgetDisabledState(WID_AP_LAYOUT_DECREASE, _selected_airport_layout == 0);
 			this->SetWidgetDisabledState(WID_AP_LAYOUT_INCREASE, _selected_airport_layout + 1U >= as->layouts.size());
 
-			int rad = _settings_game.station.modified_catchment ? as->catchment : (uint)CA_UNMODIFIED;
+			int rad = _settings_game.station.road_access_catchment ? 0 : _settings_game.station.modified_catchment ? as->catchment : (uint)CA_UNMODIFIED;
 			if (_settings_client.gui.station_show_coverage) SetTileSelectBigSize(-rad, -rad, 2 * rad, 2 * rad);
 		}
 	}

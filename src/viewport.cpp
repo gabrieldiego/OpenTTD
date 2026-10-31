@@ -66,6 +66,7 @@
 #include "viewport_func.h"
 #include "station_base.h"
 #include "station_func.h"
+#include "station_gui.h"
 #include "waypoint_base.h"
 #include "town.h"
 #include "signs_base.h"
@@ -1024,6 +1025,7 @@ const Town *_viewport_highlight_town; ///< Currently selected town for coverage 
  */
 static TileHighlightType GetTileHighlightType(TileIndex t)
 {
+	if (const BitmapTileArea *preview = GetStationCoveragePreview(); preview != nullptr && preview->Contains(t)) return TileHighlightType::Blue;
 	if (_viewport_highlight_station != nullptr) {
 		if (IsTileType(t, TileType::Station) && GetStationIndex(t) == _viewport_highlight_station->index) return TileHighlightType::White;
 		if (_viewport_highlight_station->TileIsInCatchment(t)) return TileHighlightType::Blue;
@@ -3548,6 +3550,7 @@ void SetObjectToPlaceWnd(CursorID icon, PaletteID pal, HighLightStyle mode, Wind
  */
 void SetObjectToPlace(CursorID icon, PaletteID pal, HighLightStyle mode, WindowClass window_class, WindowNumber window_num)
 {
+	ClearStationCoveragePreview();
 	if (_thd.window_class != WindowClass::Invalid) {
 		/* Undo clicking on button and drag & drop */
 		Window *w = _thd.GetCallbackWnd();
