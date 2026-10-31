@@ -10,6 +10,7 @@
 #include "stdafx.h"
 #include "company_func.h"
 #include "gfx_func.h"
+#include "gui.h"
 #include "console_func.h"
 #include "console_gui.h"
 #include "viewport_func.h"
@@ -2950,6 +2951,11 @@ static void MouseLoop(MouseClick click, int mousewheel)
 				break;
 
 			case MouseClick::Right:
+				if (_ctrl_pressed) {
+					Point pt = TranslateXYToTileCoord(*vp, x, y);
+					if (pt.x != -1) ShowLandInfo(TileVirtXY(pt.x, pt.y));
+					return;
+				}
 				if (!w->flags.Test(WindowFlag::DisableVpScroll) &&
 						_settings_client.gui.scroll_mode != ViewportScrollMode::MapLMB) {
 					_scrolling_viewport = true;

@@ -1469,7 +1469,12 @@ static std::string GetToolbarShortcut(const Window *w, WidgetID widget, std::opt
 	std::span<const Shortcut> shortcuts = _game_mode == GameMode::Editor ? std::span<const Shortcut>(editor) : std::span<const Shortcut>(normal);
 	for (const auto &shortcut : shortcuts) {
 		if (shortcut.widget == widget && shortcut.result == result) {
-			return shortcut.global ? HotkeyList::GetGlobalDisplayString(shortcut.name) : w->window_desc.hotkeys->GetDisplayString(shortcut.name);
+			std::string keys = shortcut.global ? HotkeyList::GetGlobalDisplayString(shortcut.name) : w->window_desc.hotkeys->GetDisplayString(shortcut.name);
+			if (shortcut.name == "land_info") {
+				if (!keys.empty()) keys += ", ";
+				keys += GetString(STR_ABOUT_MENU_LAND_BLOCK_INFO_SHORTCUT);
+			}
+			return keys;
 		}
 	}
 	return {};
