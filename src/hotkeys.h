@@ -51,6 +51,7 @@ struct HotkeyList {
 	void Save(IniFile &ini) const;
 
 	int CheckMatch(uint16_t keycode, bool global_only = false) const;
+	std::string GetDisplayString(int num) const;
 	std::string GetDisplayString(std::string_view name) const;
 	static std::string GetGlobalDisplayString(std::string_view name);
 

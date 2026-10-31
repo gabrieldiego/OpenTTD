@@ -313,6 +313,15 @@ int HotkeyList::CheckMatch(uint16_t keycode, bool global_only) const
 }
 
 
+/** Get the configured keys for an action identified by its widget or hotkey number. */
+std::string HotkeyList::GetDisplayString(int num) const
+{
+	for (const Hotkey &hotkey : this->items) {
+		if (hotkey.num == num) return this->GetDisplayString(hotkey.name);
+	}
+	return {};
+}
+
 /** Get the configured keys for an action, omitting the internal GLOBAL marker. */
 std::string HotkeyList::GetDisplayString(std::string_view name) const
 {
