@@ -1271,9 +1271,13 @@ void StateGameLoop()
 	assert(IsLocalCompany());
 }
 
-/** Interval for regular autosaves. Initialized at zero to disable till settings are loaded. */
-static IntervalTimer<TimerGameRealtime> _autosave_interval({std::chrono::milliseconds::zero(), TimerGameRealtime::Trigger::Autosave}, [](auto)
+static bool _autosave_requested = false; ///< Save outside calendar callbacks, after the game-state tick has completed.
+static uint _autosave_months_elapsed = 0; ///< Calendar month boundaries since the autosave schedule was reset.
+
+/** Create an autosave using the normal rotating filenames. */
+static void DoAutosave()
 {
+	WaitTillSaved();
 	/* We reset the command-during-pause mode here, so we don't continue
 	 * to make auto-saves when nothing more is changing. */
 	_pause_mode.Reset(PauseMode::CommandDuringPause);
@@ -1286,6 +1290,21 @@ static IntervalTimer<TimerGameRealtime> _autosave_interval({std::chrono::millise
 
 	_do_autosave = false;
 	SetWindowDirty(WindowClass::Statusbar, 0);
+}
+
+/** Interval for real-time autosaves. Disabled until settings are loaded. */
+static IntervalTimer<TimerGameRealtime> _autosave_interval({std::chrono::milliseconds::zero(), TimerGameRealtime::Trigger::Autosave}, [](auto)
+{
+	_autosave_requested = true;
+});
+
+/** Count actual calendar months, independently of the economic timekeeping mode. */
+static const IntervalTimer<TimerGameCalendar> _autosave_calendar_interval({TimerGameCalendar::Trigger::Month, TimerGameCalendar::Priority::None}, [](auto)
+{
+	if (_game_mode != GameMode::Normal || _settings_client.gui.autosave_calendar_months == 0) return;
+	if (++_autosave_months_elapsed < _settings_client.gui.autosave_calendar_months) return;
+	_autosave_months_elapsed = 0;
+	_autosave_requested = true;
 });
 
 /**
@@ -1299,7 +1318,10 @@ static IntervalTimer<TimerGameRealtime> _autosave_interval({std::chrono::millise
  */
 void ChangeAutosaveFrequency(bool reset)
 {
-	_autosave_interval.SetInterval({std::chrono::minutes(_settings_client.gui.autosave_interval), TimerGameRealtime::Trigger::Autosave}, reset);
+	uint32_t minutes = _settings_client.gui.autosave_calendar_months == 0 ? _settings_client.gui.autosave_interval : 0;
+	_autosave_interval.SetInterval({std::chrono::minutes(minutes), TimerGameRealtime::Trigger::Autosave}, reset);
+	_autosave_months_elapsed = 0;
+	if (reset) _autosave_requested = false;
 }
 
 /**
@@ -1345,6 +1367,11 @@ void GameLoop()
 			TimerManager<TimerGameRealtime>::Elapsed(delta_ms);
 			last_time = now;
 		}
+	}
+
+	if (_autosave_requested && !HasModalProgress()) {
+		_autosave_requested = false;
+		if (_game_mode == GameMode::Normal) DoAutosave();
 	}
 
 	/* switch game mode? */

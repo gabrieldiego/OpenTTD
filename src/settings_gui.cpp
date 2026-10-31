@@ -60,23 +60,37 @@
 #	define HAS_TRUETYPE_FONT
 #endif
 
-static const StringID _autosave_dropdown[] = {
-	STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_OFF,
-	STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_10_MINUTES,
-	STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_30_MINUTES,
-	STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_60_MINUTES,
-	STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_120_MINUTES,
-	INVALID_STRING_ID,
+/** Autosave options, using either real-time minutes or calendar months. */
+static const struct {
+	StringID label;
+	uint32_t minutes;
+	uint8_t months;
+} _autosave_dropdown[] = {
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_OFF, 0, 0},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_10_MINUTES, 10, 0},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_30_MINUTES, 30, 0},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_60_MINUTES, 60, 0},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_120_MINUTES, 120, 0},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_MONTH, 0, 1},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_3_MONTHS, 0, 3},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_6_MONTHS, 0, 6},
+	{STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_12_MONTHS, 0, 12},
 };
 
-/** Available settings for autosave intervals. */
-static const uint32_t _autosave_dropdown_to_minutes[] = {
-	0, ///< never
-	10,
-	30,
-	60,
-	120,
-};
+/** Get the dropdown option for the configured autosave clock and interval. */
+static uint GetAutosaveDropdownIndex()
+{
+	bool calendar = _settings_client.gui.autosave_calendar_months != 0;
+	uint interval = calendar ? _settings_client.gui.autosave_calendar_months : _settings_client.gui.autosave_interval;
+	uint index = 0;
+	for (uint i = 0; i < std::size(_autosave_dropdown); ++i) {
+		const auto &option = _autosave_dropdown[i];
+		if (calendar != (option.months != 0)) continue;
+		index = i;
+		if (interval <= (calendar ? option.months : option.minutes)) break;
+	}
+	return index;
+}
 
 /**
  * Get index of the current screen resolution.
@@ -492,16 +506,9 @@ struct GameOptionsWindow : Window {
 			}
 
 			case WID_GO_AUTOSAVE_DROPDOWN: { // Setup autosave dropdown
-				int index = 0;
-				for (auto &minutes : _autosave_dropdown_to_minutes) {
-					index++;
-					if (_settings_client.gui.autosave_interval <= minutes) break;
-				}
-				*selected_index = index - 1;
-
-				const StringID *items = _autosave_dropdown;
-				for (uint i = 0; *items != INVALID_STRING_ID; items++, i++) {
-					list.push_back(MakeDropDownListStringItem(*items, i));
+				*selected_index = GetAutosaveDropdownIndex();
+				for (uint i = 0; i < std::size(_autosave_dropdown); ++i) {
+					list.push_back(MakeDropDownListStringItem(_autosave_dropdown[i].label, i));
 				}
 				break;
 			}
@@ -598,14 +605,7 @@ struct GameOptionsWindow : Window {
 				return GetString(STR_GAME_OPTIONS_CURRENCY_CODE, currency.name, currency.code);
 			}
 
-			case WID_GO_AUTOSAVE_DROPDOWN: {
-				int index = 0;
-				for (auto &minutes : _autosave_dropdown_to_minutes) {
-					index++;
-					if (_settings_client.gui.autosave_interval <= minutes) break;
-				}
-				return GetString(_autosave_dropdown[index - 1]);
-			}
+			case WID_GO_AUTOSAVE_DROPDOWN: return GetString(_autosave_dropdown[GetAutosaveDropdownIndex()].label);
 
 			case WID_GO_LANG_DROPDOWN:         return _current_language->own_name;
 			case WID_GO_BASE_GRF_DROPDOWN:     return GetListLabel(BaseGraphics::GetUsedSet());
@@ -1426,7 +1426,8 @@ struct GameOptionsWindow : Window {
 			}
 
 			case WID_GO_AUTOSAVE_DROPDOWN: // Autosave options
-				_settings_client.gui.autosave_interval = _autosave_dropdown_to_minutes[index];
+				_settings_client.gui.autosave_interval = _autosave_dropdown[index].minutes;
+				_settings_client.gui.autosave_calendar_months = _autosave_dropdown[index].months;
 				ChangeAutosaveFrequency(false);
 				this->SetDirty();
 				break;

@@ -245,7 +245,8 @@ struct GUISettings {
 	ZoomLevel zoom_min; ///< minimum zoom out level
 	ZoomLevel zoom_max; ///< maximum zoom out level
 	ZoomLevel sprite_zoom_min; ///< maximum zoom level at which higher-resolution alternative sprites will be used (if available) instead of scaling a lower resolution sprite
-	uint32_t autosave_interval; ///< how often should we do autosaves?
+	uint32_t autosave_interval; ///< Real-time minutes between autosaves (0 disables real-time autosaves).
+	uint8_t autosave_calendar_months; ///< Calendar months between autosaves (0 selects real-time autosaves).
 	bool threaded_saves; ///< should we do threaded saves?
 	bool keep_all_autosave; ///< name the autosave in a different way
 	bool autosave_on_exit; ///< save an autosave when you quit the game, but do not ask "Do you really want to quit?"

@@ -1056,15 +1056,19 @@ STR_GAME_OPTIONS_CURRENCY_UAH                                   :Ukrainian Hryvn
 STR_GAME_OPTIONS_CURRENCY_VND                                   :Vietnamese Dong
 
 STR_GAME_OPTIONS_AUTOSAVE_FRAME                                 :Autosave
-STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_TOOLTIP                      :Select interval between automatic game saves
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_TOOLTIP                      :Select real-time minutes or calendar months between automatic game saves
 
 # Autosave dropdown
-###length 5
+###length 9
 STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_OFF                          :Off
-STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_10_MINUTES             :Every 10 minutes
-STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_30_MINUTES             :Every 30 minutes
-STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_60_MINUTES             :Every 60 minutes
-STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_120_MINUTES            :Every 120 minutes
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_10_MINUTES             :Every 10 minutes (real time)
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_30_MINUTES             :Every 30 minutes (real time)
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_60_MINUTES             :Every 60 minutes (real time)
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_120_MINUTES            :Every 120 minutes (real time)
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_MONTH                  :Every calendar month
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_3_MONTHS               :Every 3 calendar months
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_6_MONTHS               :Every 6 calendar months
+STR_GAME_OPTIONS_AUTOSAVE_DROPDOWN_EVERY_12_MONTHS              :Every 12 calendar months
 
 STR_GAME_OPTIONS_LANGUAGE                                       :Language
 STR_GAME_OPTIONS_LANGUAGE_TOOLTIP                               :Select the interface language to use
