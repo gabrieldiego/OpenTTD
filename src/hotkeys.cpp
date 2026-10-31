@@ -367,11 +367,34 @@ static void MigrateWindowCloseHotkeys(IniFile &ini)
 	}
 }
 
+/** Add construction shortcuts to saved defaults, preserving customized bindings. */
+static void MigrateConstructionHotkeys(IniFile &ini)
+{
+	const std::tuple<std::string_view, std::string_view, uint16_t, std::string_view> defaults[] = {
+		{"roadtoolbar", "autoroad", '3', "3,GLOBAL+J"},
+		{"tramtoolbar", "autoroad", '3', "3,GLOBAL+K"},
+		{"dockstoolbar", "canal", '1', "1,GLOBAL+N"},
+		{"airtoolbar", "airport", '1', "1,GLOBAL+Y"},
+	};
+	for (const auto &[group_name, name, old_key, replacement] : defaults) {
+		IniGroup *group = ini.GetGroup(group_name);
+		if (group == nullptr) continue;
+		const IniItem *item = group->GetItem(name);
+		if (item == nullptr || !item->value.has_value()) continue;
+		Hotkey hotkey(0, "", 0);
+		ParseHotkeys(hotkey, *item->value);
+		if (hotkey.keycodes == std::set<uint16_t>{old_key}) group->GetOrCreateItem(name).SetValue(replacement);
+	}
+}
+
 static void SaveLoadHotkeys(bool save)
 {
 	IniFile ini{};
 	ini.LoadFromDisk(_hotkeys_file, Subdirectory::None);
-	if (!save) MigrateWindowCloseHotkeys(ini);
+	if (!save) {
+		MigrateWindowCloseHotkeys(ini);
+		MigrateConstructionHotkeys(ini);
+	}
 
 	for (HotkeyList *list : *_hotkey_lists) {
 		if (save) {

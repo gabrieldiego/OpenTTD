@@ -323,7 +323,7 @@ struct BuildDocksToolbarWindow : Window {
 	}
 
 	static inline HotkeyList hotkeys{"dockstoolbar", {
-		Hotkey('1', "canal", WID_DT_CANAL),
+		Hotkey({'1', 'N' | WKC_GLOBAL_HOTKEY}, "canal", WID_DT_CANAL),
 		Hotkey('2', "lock", WID_DT_LOCK),
 		Hotkey('3', "demolish", WID_DT_DEMOLISH),
 		Hotkey('4', "depot", WID_DT_DEPOT),

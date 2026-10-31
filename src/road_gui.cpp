@@ -906,6 +906,7 @@ struct BuildRoadToolbarWindow : Window {
 	 */
 	static EventState RoadTramToolbarGlobalHotkeys(int hotkey, RoadType last_build, RoadTramType rtt)
 	{
+		if (last_build == INVALID_ROADTYPE || GetRoadTramType(last_build) != rtt) return EventState::NotHandled;
 		Window *w = nullptr;
 		switch (_game_mode) {
 			case GameMode::Normal:
@@ -938,7 +939,7 @@ struct BuildRoadToolbarWindow : Window {
 	static inline HotkeyList road_hotkeys{"roadtoolbar", {
 		Hotkey('1', "build_x", WID_ROT_ROAD_X),
 		Hotkey('2', "build_y", WID_ROT_ROAD_Y),
-		Hotkey('3', "autoroad", WID_ROT_AUTOROAD),
+		Hotkey({'3', 'J' | WKC_GLOBAL_HOTKEY}, "autoroad", WID_ROT_AUTOROAD),
 		Hotkey('4', "demolish", WID_ROT_DEMOLISH),
 		Hotkey('5', "depot", WID_ROT_DEPOT),
 		Hotkey('6', "bus_station", WID_ROT_BUS_STATION),
@@ -958,7 +959,7 @@ struct BuildRoadToolbarWindow : Window {
 	static inline HotkeyList tram_hotkeys{"tramtoolbar", {
 		Hotkey('1', "build_x", WID_ROT_ROAD_X),
 		Hotkey('2', "build_y", WID_ROT_ROAD_Y),
-		Hotkey('3', "autoroad", WID_ROT_AUTOROAD),
+		Hotkey({'3', 'K' | WKC_GLOBAL_HOTKEY}, "autoroad", WID_ROT_AUTOROAD),
 		Hotkey('4', "demolish", WID_ROT_DEMOLISH),
 		Hotkey('5', "depot", WID_ROT_DEPOT),
 		Hotkey('6', "bus_station", WID_ROT_BUS_STATION),

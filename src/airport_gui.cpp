@@ -196,7 +196,7 @@ struct BuildAirToolbarWindow : Window {
 	}
 
 	static inline HotkeyList hotkeys{"airtoolbar", {
-		Hotkey('1', "airport", WID_AT_AIRPORT),
+		Hotkey({'1', 'Y' | WKC_GLOBAL_HOTKEY}, "airport", WID_AT_AIRPORT),
 		Hotkey('2', "demolish", WID_AT_DEMOLISH),
 	}, AirportToolbarGlobalHotkeys};
 };
