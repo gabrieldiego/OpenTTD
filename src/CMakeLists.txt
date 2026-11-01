@@ -60,6 +60,8 @@ add_files(
     aircraft_cmd.cpp
     aircraft_cmd.h
     aircraft_gui.cpp
+    aircraft_range.cpp
+    aircraft_range.h
     airport.cpp
     airport.h
     airport_cmd.h

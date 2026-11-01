@@ -6095,3 +6095,5 @@ STR_STATION_CAPACITY_PASSENGERS                                 :Passengers
 STR_STATION_CAPACITY_MAIL                                       :Mail
 STR_STATION_CAPACITY_FREIGHT                                    :Shared freight
 STR_STATION_CAPACITY_TOOLTIP                                    :Waiting cargo / storage capacity and percentage used. Passengers and mail have independent storage; all other cargo shares the freight pool. Units already boarding still use storage. Rating is the cargo-weighted average remaining patience, or 100% when empty.
+
+STR_VEHICLE_VIEW_AIRCRAFT_RANGE_TOOLTIP                          :Toggle aircraft range in muted blue and airports within range in white. Available while stopped in an airport hangar. Unlimited range covers the whole map.

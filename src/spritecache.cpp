@@ -126,6 +126,7 @@ bool SkipSpriteData(SpriteFile &file, uint8_t type, uint16_t num)
 /* Check if the given Sprite ID exists */
 bool SpriteExists(SpriteID id)
 {
+	if (id == PALETTE_SEL_TILE_LIGHT_BLUE) return true;
 	if (id >= _spritecache.size()) return false;
 
 	/* Special case for Sprite ID zero -- its position is also 0... */
@@ -140,6 +141,7 @@ bool SpriteExists(SpriteID id)
  */
 SpriteType GetSpriteType(SpriteID sprite)
 {
+	if (sprite == PALETTE_SEL_TILE_LIGHT_BLUE) return SpriteType::Recolour;
 	if (!SpriteExists(sprite)) return SpriteType::Invalid;
 	return GetSpriteCache(sprite)->type;
 }
@@ -151,6 +153,7 @@ SpriteType GetSpriteType(SpriteID sprite)
  */
 SpriteFile *GetOriginFile(SpriteID sprite)
 {
+	if (sprite == PALETTE_SEL_TILE_LIGHT_BLUE) return nullptr;
 	if (!SpriteExists(sprite)) return nullptr;
 	return GetSpriteCache(sprite)->file;
 }
@@ -162,6 +165,7 @@ SpriteFile *GetOriginFile(SpriteID sprite)
  */
 uint32_t GetSpriteLocalID(SpriteID sprite)
 {
+	if (sprite == PALETTE_SEL_TILE_LIGHT_BLUE) return 0;
 	if (!SpriteExists(sprite)) return 0;
 	return GetSpriteCache(sprite)->id;
 }
@@ -201,7 +205,9 @@ uint GetSpriteCountForFile(const std::string &filename, SpriteID begin, SpriteID
  */
 SpriteID GetMaxSpriteID()
 {
-	return static_cast<SpriteID>(_spritecache.size());
+	/* Zero also tells the renderer that base graphics have not been loaded yet. */
+	if (_spritecache.empty()) return 0;
+	return std::max(static_cast<SpriteID>(_spritecache.size()), PALETTE_SEL_TILE_LIGHT_BLUE + 1);
 }
 
 static bool ResizeSpriteIn(SpriteLoader::SpriteCollection &sprite, ZoomLevel src, ZoomLevel tgt)
@@ -851,6 +857,24 @@ static void *HandleInvalidSpriteRequest(SpriteID sprite, SpriteType requested, S
  */
 void *GetRawSprite(SpriteID sprite, SpriteType type, SpriteAllocator *allocator, SpriteEncoder *encoder)
 {
+	/* The built-in selection palette needs no updated base graphics or disk-backed sprite. */
+	if (sprite == PALETTE_SEL_TILE_LIGHT_BLUE) {
+		if (type != SpriteType::Recolour) return GetRawSprite(SPR_IMG_QUERY, type, allocator, encoder);
+		static std::array<uint8_t, 257> recolour = [] {
+			std::array<uint8_t, 257> result{};
+			for (uint i = 0; i < 256; ++i) result[i + 1] = i;
+			/* Tint both the corner accents (9) and main outline (13) in muted blue. */
+			result[9 + 1] = 200;
+			result[13 + 1] = 202;
+			result[23 + 1] = 0;
+			return result;
+		}();
+		if (allocator == nullptr) return recolour.data();
+		auto *copy = allocator->Allocate<uint8_t>(recolour.size());
+		std::copy(recolour.begin(), recolour.end(), copy);
+		return copy;
+	}
+
 	assert(type != SpriteType::MapGen || IsMapgenSpriteID(sprite));
 	assert(type < SpriteType::Invalid);
 

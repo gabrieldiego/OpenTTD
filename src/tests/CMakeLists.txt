@@ -1,4 +1,5 @@
 add_test_files(
+    aircraft_range.cpp
     alternating_iterator.cpp
     bitmath_func.cpp
     enum_over_optimisation.cpp

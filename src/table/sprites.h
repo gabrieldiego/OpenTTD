@@ -343,7 +343,7 @@ static const uint16_t EMPTY_BOUNDING_BOX_SPRITE_COUNT = 1;
 /** @{
  * Black palette sprite, needed for painting (fictive) tiles outside map. */
 static const SpriteID SPR_PALETTE_BASE = SPR_EMPTY_BOUNDING_BOX + EMPTY_BOUNDING_BOX_SPRITE_COUNT;
-static const uint16_t PALETTE_SPRITE_COUNT = 1;
+static const uint16_t PALETTE_SPRITE_COUNT = 2;
 /** @} */
 
 /** @{
@@ -1797,6 +1797,7 @@ static const PaletteID PALETTE_CRASH               = 804;  ///< Recolour sprite 
 static const PaletteID PALETTE_CHURCH_RED          = 1438; ///< Recolour sprite for reddish churches
 static const PaletteID PALETTE_CHURCH_CREAM        = 1439; ///< Recolour sprite for white churches
 
+static const PaletteID PALETTE_SEL_TILE_LIGHT_BLUE = SPR_PALETTE_BASE + 1; ///< Built-in light-blue aircraft range selection palette.
 static const PaletteID PALETTE_ALL_BLACK           = SPR_PALETTE_BASE; ///< Exchange any colour by black, needed for painting fictive tiles outside map
 
 #endif /* SPRITES_H */

@@ -21,6 +21,7 @@
 #include "roadveh.h"
 #include "train.h"
 #include "aircraft.h"
+#include "aircraft_range.h"
 #include "depot_map.h"
 #include "group_gui.h"
 #include "strings_func.h"
@@ -2893,6 +2894,9 @@ static constexpr std::initializer_list<NWidgetPart> _nested_vehicle_view_widgets
 			EndContainer(),
 			NWidget(WWT_PUSHIMGBTN, Colours::Grey, WID_VV_SHOW_ORDERS), SetMinimalSize(18, 18), SetSpriteTip(SPR_SHOW_ORDERS),
 			NWidget(WWT_PUSHIMGBTN, Colours::Grey, WID_VV_SHOW_DETAILS), SetMinimalSize(18, 18), SetSpriteTip(SPR_SHOW_VEHICLE_DETAILS),
+			NWidget(NWID_SELECTION, Colours::Invalid, WID_VV_AIRCRAFT_RANGE_SEL),
+				NWidget(WWT_IMGBTN, Colours::Grey, WID_VV_AIRCRAFT_RANGE), SetMinimalSize(18, 18), SetSpriteTip(SPR_IMG_SHOW_COUNTOURS, STR_VEHICLE_VIEW_AIRCRAFT_RANGE_TOOLTIP),
+			EndContainer(),
 			NWidget(WWT_PANEL, Colours::Grey), SetMinimalSize(18, 0), SetResize(0, 1), EndContainer(),
 		EndContainer(),
 	EndContainer(),
@@ -3051,6 +3055,7 @@ public:
 			SPR_SEND_AIRCRAFT_TODEPOT,
 		};
 		const Vehicle *v = Vehicle::Get(window_number);
+		this->GetWidget<NWidgetStacked>(WID_VV_AIRCRAFT_RANGE_SEL)->SetDisplayedPlane(v->type == VehicleType::Aircraft ? 0 : SZSP_NONE);
 		this->GetWidget<NWidgetCore>(WID_VV_GOTO_DEPOT)->SetSprite(vehicle_view_goto_depot_sprites[v->type]);
 
 		/* Sprites for the 'clone vehicle' button indexed by vehicle type. */
@@ -3099,6 +3104,7 @@ public:
 
 	void Close([[maybe_unused]] int data = 0) override
 	{
+		SetAircraftRangeHighlight(static_cast<VehicleID>(this->window_number), false);
 		CloseWindowById(WindowClass::VehicleOrders, this->window_number, false);
 		CloseWindowById(WindowClass::VehicleRefit, this->window_number, false);
 		CloseWindowById(WindowClass::VehicleDetails, this->window_number, false);
@@ -3128,6 +3134,16 @@ public:
 		}
 	}
 
+	/** Update the range overlay before viewport drawing, including while paused. */
+	void OnRealtimeTick([[maybe_unused]] uint delta_ms) override
+	{
+		const Vehicle *v = Vehicle::Get(this->window_number);
+		if (v->type != VehicleType::Aircraft) return;
+		if (IsAircraftRangeHighlighted(v->index)) UpdateAircraftRangeHighlight();
+		this->SetWidgetDisabledState(WID_VV_AIRCRAFT_RANGE, !GetAircraftRange(v).has_value());
+		this->SetWidgetLoweredState(WID_VV_AIRCRAFT_RANGE, IsAircraftRangeHighlighted(v->index));
+	}
+
 	/** Update buttons state to match shown vehicle. */
 	void UpdateButtons()
 	{
@@ -3154,6 +3170,7 @@ public:
 		}
 
 		this->SetWidgetDisabledState(WID_VV_ORDER_LOCATION, v->current_order.GetLocation(v) == INVALID_TILE);
+		if (v->type == VehicleType::Aircraft) this->OnRealtimeTick(0);
 	}
 
 	void OnPaint() override
@@ -3337,6 +3354,10 @@ public:
 				} else {
 					ShowOrdersWindow(v);
 				}
+				break;
+			case WID_VV_AIRCRAFT_RANGE:
+				SetAircraftRangeHighlight(v->index, !IsAircraftRangeHighlighted(v->index));
+				this->OnRealtimeTick(0);
 				break;
 			case WID_VV_SHOW_DETAILS: // show details
 				if (_ctrl_pressed) {

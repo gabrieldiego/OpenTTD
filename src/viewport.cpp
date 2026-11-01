@@ -72,6 +72,7 @@
 #include "signs_base.h"
 #include "signs_func.h"
 #include "vehicle_base.h"
+#include "aircraft_range.h"
 #include "vehicle_gui.h"
 #include "blitter/factory.hpp"
 #include "spritecache.h"
@@ -1008,6 +1009,7 @@ static void DrawAutorailSelection(const TileInfo *ti, HighLightStyle highlight_s
 enum class TileHighlightType : uint8_t {
 	None, ///< No tile highlight.
 	White, ///< Indicates a tile which is part of the highlighted station, or a station tile within the highlighted town.
+	LightBlue, ///< Indicates a tile within the selected aircraft's range.
 	Blue, ///< Indicates a tile which is in the catchment area of the highlighted station.
 	Red, ///< Indicates a house tile which is not in any station catchment area of the highlighted town.
 };
@@ -1045,6 +1047,9 @@ void ClearPinnedStationCoverage()
  */
 static TileHighlightType GetTileHighlightType(TileIndex t)
 {
+	const AircraftRange *range = GetAircraftRangeHighlight();
+	if (range != nullptr && IsTileType(t, TileType::Station) && (IsAirportTile(t) || IsOilRig(t)) &&
+			range->ContainsAirport(*Station::GetByTile(t))) return TileHighlightType::White;
 	if (IsTileType(t, TileType::Station) && _pinned_station_coverage.contains(GetStationIndex(t)) &&
 			FindWindowById(WindowClass::StationView, GetStationIndex(t)) != nullptr) return TileHighlightType::White;
 	for (StationID id : _pinned_station_coverage) {
@@ -1088,7 +1093,7 @@ static TileHighlightType GetTileHighlightType(TileIndex t)
 		}
 	}
 
-	return TileHighlightType::None;
+	return range != nullptr && range->Contains(t) ? TileHighlightType::LightBlue : TileHighlightType::None;
 }
 
 /**
@@ -1103,6 +1108,7 @@ static void DrawTileHighlightType(const TileInfo *ti, TileHighlightType tht)
 		case TileHighlightType::None: break;
 		case TileHighlightType::White: DrawTileSelectionRect(ti, PAL_NONE); break;
 		case TileHighlightType::Blue: DrawTileSelectionRect(ti, PALETTE_SEL_TILE_BLUE); break;
+		case TileHighlightType::LightBlue: DrawTileSelectionRect(ti, PALETTE_SEL_TILE_LIGHT_BLUE); break;
 		case TileHighlightType::Red: DrawTileSelectionRect(ti, PALETTE_SEL_TILE_RED); break;
 	}
 }
