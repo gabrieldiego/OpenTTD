@@ -19,6 +19,7 @@
 #include "cargotype.h"
 #include "station_func.h"
 #include "station_gui.h"
+#include "station_capacity.h"
 #include "strings_func.h"
 #include "string_func.h"
 #include "window_func.h"
@@ -936,6 +937,9 @@ static constexpr std::initializer_list<NWidgetPart> _nested_station_view_widgets
 		NWidget(WWT_PANEL, Colours::Grey, WID_SV_WAITING), SetMinimalSize(237, 44), SetResize(1, 10), SetScrollbar(WID_SV_SCROLLBAR), EndContainer(),
 		NWidget(NWID_VSCROLLBAR, Colours::Grey, WID_SV_SCROLLBAR),
 	EndContainer(),
+	NWidget(NWID_SELECTION, Colours::Invalid, WID_SV_CAPACITY_SEL),
+		NWidget(WWT_PANEL, Colours::Grey, WID_SV_CAPACITY), SetMinimalSize(249, 0), SetResize(1, 0), SetToolTip(STR_STATION_CAPACITY_TOOLTIP), EndContainer(),
+	EndContainer(),
 	NWidget(WWT_PANEL, Colours::Grey, WID_SV_ACCEPT_RATING_LIST), SetMinimalSize(249, 23), SetResize(1, 0), EndContainer(),
 	NWidget(NWID_HORIZONTAL, NWidContainerFlag::EqualSize),
 		NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_SV_ACCEPTS_RATINGS), SetMinimalSize(46, 12), SetResize(1, 0), SetFill(1, 1),
@@ -1439,6 +1443,7 @@ struct StationViewWindow : public Window {
 	StationViewWindow(WindowDesc &desc, WindowNumber window_number) : Window(desc)
 	{
 		this->CreateNestedTree();
+		this->GetWidget<NWidgetStacked>(WID_SV_CAPACITY_SEL)->SetDisplayedPlane(_settings_game.station.cargo_patience ? 0 : SZSP_NONE);
 		this->GetWidget<NWidgetStacked>(WID_SV_CLOSE_AIRPORT_SEL)->SetDisplayedPlane(Station::Get(window_number)->facilities.Test(StationFacility::Airport) ? 0 : SZSP_NONE);
 		this->vscroll = this->GetScrollbar(WID_SV_SCROLLBAR);
 		/* Nested widget tree creation is done in two steps to ensure that this->GetWidget<NWidgetCore>(WID_SV_ACCEPTS_RATINGS) exists in UpdateWidgetSize(). */
@@ -1521,6 +1526,14 @@ struct StationViewWindow : public Window {
 	void UpdateWidgetSize(WidgetID widget, Dimension &size, [[maybe_unused]] const Dimension &padding, [[maybe_unused]] Dimension &fill, [[maybe_unused]] Dimension &resize) override
 	{
 		switch (widget) {
+			case WID_SV_CAPACITY:
+				for (StationCargoPool pool : EnumRange(StationCargoPool::End)) {
+					size.width = std::max(size.width, GetStringBoundingBox(GetString(STR_STATION_CAPACITY_ROW,
+							STR_STATION_CAPACITY_PASSENGERS + to_underlying(pool), 9999999, 9999999, 100)).width + padding.width);
+				}
+				size.height = 4 * GetCharacterHeight(FontSize::Normal) + padding.height;
+				break;
+
 			case WID_SV_WAITING:
 				fill.height = resize.height = this->line_height;
 				size.height = 4 * resize.height + padding.height;
@@ -1592,6 +1605,22 @@ struct StationViewWindow : public Window {
 			Rect waiting_rect = nwi->GetCurrentRect().Shrink(WidgetDimensions::scaled.framerect);
 			this->DrawEntries(cargo, waiting_rect, pos, maxrows, 0);
 			scroll_to_row = INT_MAX;
+		}
+	}
+
+	void DrawWidget(const Rect &r, WidgetID widget) const override
+	{
+		if (widget != WID_SV_CAPACITY) return;
+		const Station &st = *Station::Get(this->window_number);
+		Rect tr = r.Shrink(WidgetDimensions::scaled.framerect);
+		DrawString(tr, GetString(STR_STATION_CAPACITY_RATING, ToPercent8(GetStationOverallPatienceRating(st))));
+		tr.top += GetCharacterHeight(FontSize::Normal);
+		auto capacity = GetStationCargoCapacities(st);
+		auto usage = GetStationCargoUsage(st);
+		for (StationCargoPool pool : EnumRange(StationCargoPool::End)) {
+			uint percent = capacity[pool] == 0 ? (usage[pool] == 0 ? 0 : 100) : static_cast<uint>(static_cast<uint64_t>(usage[pool]) * 100 / capacity[pool]);
+			DrawString(tr, GetString(STR_STATION_CAPACITY_ROW, STR_STATION_CAPACITY_PASSENGERS + to_underlying(pool), usage[pool], capacity[pool], percent));
+			tr.top += GetCharacterHeight(FontSize::Normal);
 		}
 	}
 

@@ -6071,3 +6071,13 @@ STR_BADGE_CONFIG_FILTERS                                        :{WHITE}Badge Fi
 STR_BADGE_CONFIG_PREVIEW                                        :Preview Image
 STR_BADGE_CONFIG_NAME                                           :Name
 STR_BADGE_FILTER_ANY_LABEL                                      :Any {STRING}
+
+# Capacity and patience-based station ratings
+STR_CONFIG_SETTING_STATION_CARGO_PATIENCE                        :Station capacity and cargo patience: {STRING}
+STR_CONFIG_SETTING_STATION_CARGO_PATIENCE_HELPTEXT                :Use separate passenger and mail capacities and one shared freight capacity. Facilities add storage; rail and airport technology determine capacity. Waiting cargo loses patience faster in crowded pools and leaves when patience runs out. Ratings equal average remaining patience, or 100% when empty. Full pools refuse new supply and hold transferring vehicles until space becomes available. Only selectable before starting a game.
+STR_STATION_CAPACITY_RATING                                     :{BLACK}Station rating: {LTBLUE}{COMMA}%
+STR_STATION_CAPACITY_ROW                                        :{BLACK}{STRING}: {LTBLUE}{COMMA} / {COMMA} ({COMMA}%)
+STR_STATION_CAPACITY_PASSENGERS                                 :Passengers
+STR_STATION_CAPACITY_MAIL                                       :Mail
+STR_STATION_CAPACITY_FREIGHT                                    :Shared freight
+STR_STATION_CAPACITY_TOOLTIP                                    :Waiting cargo / storage capacity and percentage used. Passengers and mail have independent storage; all other cargo shares the freight pool. Units already boarding still use storage. Rating is the cargo-weighted average remaining patience, or 100% when empty.

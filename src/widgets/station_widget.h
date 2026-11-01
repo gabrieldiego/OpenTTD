@@ -31,6 +31,8 @@ enum StationViewWidgets : WidgetID {
 	WID_SV_PLANES,             ///< List of scheduled planes button.
 	WID_SV_CATCHMENT,          ///< Toggle catchment area highlight.
 	WID_SV_CATCHMENT_PIN,      ///< Keep catchment highlighted after closing the station window.
+	WID_SV_CAPACITY_SEL,       ///< Show capacities only for the patience-based rating mode.
+	WID_SV_CAPACITY,           ///< Passenger, mail and shared freight storage usage.
 };
 
 /** Widgets of the #CompanyStationsWindow class. */
