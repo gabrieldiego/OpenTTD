@@ -27,6 +27,7 @@
 #include "company_func.h"
 #include "effectvehicle_func.h"
 #include "station_base.h"
+#include "station_capacity.h"
 #include "station_func.h"
 #include "engine_base.h"
 #include "core/random_func.hpp"
@@ -1399,10 +1400,11 @@ static void MaybeCrashAirplane(Aircraft *v)
 
 	/* Crash the airplane. Remove all goods stored at the station. */
 	for (GoodsEntry &ge : st->goods) {
-		ge.rating = 1;
+		if (!_settings_game.station.cargo_patience) ge.rating = 1;
 		if (ge.HasData()) ge.GetData().cargo.Truncate();
 	}
 
+	RefreshStationCargoPatienceRatings(*st);
 	CrashAirplane(v);
 }
 

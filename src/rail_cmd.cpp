@@ -31,6 +31,8 @@
 #include "company_gui.h"
 #include "object_map.h"
 #include "rail_cmd.h"
+#include "station_base.h"
+#include "station_capacity.h"
 #include "landscape_cmd.h"
 
 #include "table/strings.h"
@@ -1645,6 +1647,12 @@ CommandCost CmdConvertRail(DoCommandFlags flags, TileIndex tile, TileIndex area_
 				}
 
 				SetRailType(cur_tile, totype);
+				if (_settings_game.station.cargo_patience && IsRailStationTile(cur_tile)) {
+					Station &st = *Station::GetByTile(cur_tile);
+					EnforceStationCargoCapacity(st);
+					RefreshStationCargoPatienceRatings(st);
+					SetWindowDirty(WindowClass::StationView, st.index);
+				}
 				MarkTileDirtyByTile(cur_tile);
 				/* update power of train on this tile */
 				for (Vehicle *v : VehiclesOnTile(cur_tile)) {

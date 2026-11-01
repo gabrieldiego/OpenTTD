@@ -38,6 +38,7 @@
 #include "subsidy_base.h"
 #include "subsidy_func.h"
 #include "station_base.h"
+#include "station_capacity.h"
 #include "station_func.h"
 #include "vehicle_gui.h"
 #include "waypoint_base.h"
@@ -1648,6 +1649,7 @@ static void LoadUnloadVehicle(Vehicle *front)
 	bool completely_emptied = true;
 	bool anything_unloaded  = false;
 	bool anything_loaded    = false;
+	bool storage_blocked = false;
 	CargoTypes full_load_amount{};
 	CargoTypes cargo_not_full{};
 	CargoTypes cargo_full{};
@@ -1708,8 +1710,11 @@ static void LoadUnloadVehicle(Vehicle *front)
 			}
 
 			assert(payment != nullptr);
-			amount_unloaded = v->cargo.Unload(amount_unloaded, &ge->GetOrCreateData().cargo, v->cargo_type, payment, v->GetCargoTile());
+			uint free_space = _settings_game.station.cargo_patience ? GetStationCargoFreeSpace(*st, v->cargo_type) : UINT_MAX;
+			amount_unloaded = v->cargo.Unload(amount_unloaded, &ge->GetOrCreateData().cargo, v->cargo_type, payment, v->GetCargoTile(), free_space);
 			remaining = v->cargo.UnloadCount() > 0;
+			storage_blocked |= _settings_game.station.cargo_patience && remaining &&
+					v->cargo.ActionCount(VehicleCargoList::MoveToAction::Transfer) > 0 && GetStationCargoFreeSpace(*st, v->cargo_type) == 0;
 			if (amount_unloaded > 0) {
 				dirty_vehicle = true;
 				anything_unloaded = true;
@@ -1719,7 +1724,7 @@ static void LoadUnloadVehicle(Vehicle *front)
 				st->time_since_unload = 0;
 			}
 
-			if (_settings_game.order.gradual_loading && remaining) {
+			if ((_settings_game.order.gradual_loading || storage_blocked) && remaining) {
 				completely_emptied = false;
 			} else {
 				/* We have finished unloading (cargo count == 0) */
@@ -1841,7 +1846,7 @@ static void LoadUnloadVehicle(Vehicle *front)
 	/* Only set completely_emptied, if we just unloaded all remaining cargo */
 	completely_emptied &= anything_unloaded;
 
-	if (!anything_unloaded) delete payment;
+	if (!anything_unloaded && !storage_blocked) delete payment;
 
 	front->vehicle_flags.Reset(VehicleFlag::StopLoading);
 	if (anything_loaded || anything_unloaded) {
@@ -1854,7 +1859,7 @@ static void LoadUnloadVehicle(Vehicle *front)
 		}
 		/* We loaded less cargo than possible for all cargo types and it's not full
 		 * load and we're not supposed to wait any longer: stop loading. */
-		if (!anything_unloaded && full_load_amount.None() && reservation_left.None() && !front->current_order.IsFullLoadOrder() &&
+		if (!anything_unloaded && !storage_blocked && full_load_amount.None() && reservation_left.None() && !front->current_order.IsFullLoadOrder() &&
 				front->current_order_time >= std::max(front->current_order.GetTimetabledWait() - front->lateness_counter, 0)) {
 			front->vehicle_flags.Set(VehicleFlag::StopLoading);
 		}
@@ -1862,7 +1867,7 @@ static void LoadUnloadVehicle(Vehicle *front)
 		UpdateLoadUnloadTicks(front, st, new_load_unload_ticks);
 	} else {
 		UpdateLoadUnloadTicks(front, st, 20); // We need the ticks for link refreshing.
-		bool finished_loading = true;
+		bool finished_loading = !storage_blocked;
 		if (front->current_order.IsFullLoadOrder()) {
 			if (front->current_order.GetLoadType() == OrderLoadType::FullLoadAny) {
 				/* if the aircraft carries passengers and is NOT full, then
@@ -1953,6 +1958,11 @@ void LoadUnloadStation(Station *st)
 	for (Vehicle *v : st->loading_vehicles) {
 		if (!v->vehstatus.Any({VehState::Stopped, VehState::Crashed})) LoadUnloadVehicle(v);
 		if (v == last_loading) break;
+	}
+
+	if (_settings_game.station.cargo_patience) {
+		if (EnforceStationCargoCapacity(*st) != 0) st->MarkTilesDirty(true);
+		RefreshStationCargoPatienceRatings(*st);
 	}
 
 	/* Call the production machinery of industries */

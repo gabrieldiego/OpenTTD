@@ -40,6 +40,7 @@
 #include "animated_tile_func.h"
 #include "elrail_func.h"
 #include "station_base.h"
+#include "station_capacity.h"
 #include "station_func.h"
 #include "station_kdtree.h"
 #include "roadstop_base.h"
@@ -797,6 +798,10 @@ void Station::AfterStationTileSetChange(bool adding, StationType type)
 		this->RecomputeCatchment();
 	}
 
+	if (_settings_game.station.cargo_patience) {
+		EnforceStationCargoCapacity(*this);
+		RefreshStationCargoPatienceRatings(*this);
+	}
 }
 
 CommandCost ClearTile_Station(TileIndex tile, DoCommandFlags flags);
@@ -3971,6 +3976,12 @@ static void UpdateStationRating(Station *st)
 	byte_inc_sat(&st->time_since_load);
 	byte_inc_sat(&st->time_since_unload);
 
+	if (_settings_game.station.cargo_patience) {
+		for (GoodsEntry &ge : st->goods) byte_inc_sat(&ge.time_since_pickup);
+		UpdateStationCargoPatience(*st);
+		return;
+	}
+
 	for (const CargoSpec *cs : CargoSpec::Iterate()) {
 		GoodsEntry *ge = &st->goods[cs->Index()];
 
@@ -4383,6 +4394,7 @@ static const IntervalTimer<TimerGameEconomy> _economy_stations_monthly({TimerGam
  */
 void ModifyStationRatingAround(TileIndex tile, Owner owner, int amount, uint radius)
 {
+	if (_settings_game.station.cargo_patience) return;
 	ForAllStationsRadius(tile, radius, [&](Station *st) {
 		if (st->owner == owner && DistanceManhattan(tile, st->xy) <= radius) {
 			for (GoodsEntry &ge : st->goods) {
@@ -4405,11 +4417,13 @@ static uint UpdateStationWaiting(Station *st, CargoType cargo, uint amount, Sour
 	ge.amount_fract = GB(amount, 0, 8);
 
 	amount >>= 8;
+	if (_settings_game.station.cargo_patience) amount = std::min(amount, GetStationCargoFreeSpace(*st, cargo));
 	/* No new "real" cargo item yet. */
 	if (amount == 0) return 0;
 
 	StationID next = ge.GetVia(st->index);
 	ge.GetOrCreateData().cargo.Append(CargoPacket::Create(st->index, amount, source), next);
+	RefreshStationCargoPatienceRatings(*st);
 	LinkGraph *lg = nullptr;
 	if (ge.link_graph == LinkGraphID::Invalid()) {
 		if (LinkGraph::CanAllocateItem()) {
@@ -4578,6 +4592,9 @@ static bool CanMoveGoodsToStation(const Station *st, CargoType cargo)
 
 	/* Lowest possible rating, better not to give cargo anymore. */
 	if (st->goods[cargo].rating == 0) return false;
+
+	/* Full storage cannot compete with stations still able to accept this cargo. */
+	if (_settings_game.station.cargo_patience && GetStationCargoFreeSpace(*st, cargo) == 0) return false;
 
 	/* Selectively servicing stations, and not this one. */
 	if (_settings_game.order.selectgoods && !st->goods[cargo].HasVehicleEverTriedLoading()) return false;

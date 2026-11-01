@@ -30,6 +30,7 @@
 #include "autoreplace_func.h"
 #include "autoreplace_gui.h"
 #include "station_base.h"
+#include "station_capacity.h"
 #include "station_func.h"
 #include "ai/ai.hpp"
 #include "depot_func.h"
@@ -2363,6 +2364,11 @@ void Vehicle::CancelReservation(StationID next, Station *st)
 			cargo.Return(UINT_MAX, &st->goods[v->cargo_type].GetOrCreateData().cargo, next, v->tile);
 		}
 		cargo.KeepAll();
+	}
+	if (_settings_game.station.cargo_patience) {
+		EnforceStationCargoCapacity(*st);
+		RefreshStationCargoPatienceRatings(*st);
+		SetWindowDirty(WindowClass::StationView, st->index);
 	}
 }
 

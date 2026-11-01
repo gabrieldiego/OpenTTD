@@ -771,6 +771,7 @@ SettingsContainer &GetSettingsTree()
 			limitations->Add(new SettingEntry("station.distant_join_stations"));
 			limitations->Add(new SettingEntry("station.modified_catchment"));
 			limitations->Add(new SettingEntry("station.road_access_catchment"));
+			limitations->Add(new SettingEntry("station.cargo_patience"));
 			limitations->Add(new SettingEntry("construction.road_stop_on_town_road"));
 			limitations->Add(new SettingEntry("construction.road_stop_on_competitor_road"));
 			limitations->Add(new SettingEntry("construction.crossing_with_competitor"));

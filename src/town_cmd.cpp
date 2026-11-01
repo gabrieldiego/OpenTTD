@@ -3678,7 +3678,7 @@ static CommandCost TownActionBribe(Town *t, DoCommandFlags flags)
 			/* set all close by station ratings to 0 */
 			for (Station *st : Station::Iterate()) {
 				if (st->town == t && st->owner == _current_company) {
-					for (GoodsEntry &ge : st->goods) ge.rating = 0;
+					if (!_settings_game.station.cargo_patience) for (GoodsEntry &ge : st->goods) ge.rating = 0;
 				}
 			}
 
