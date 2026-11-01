@@ -553,6 +553,7 @@ public:
 
 	uint8_t time_since_load = 0;
 	uint8_t time_since_unload = 0;
+	uint8_t disaster_rating_periods = 0; ///< Remaining 2.5-day periods of the temporary disaster penalty.
 
 	VehicleType last_vehicle_type = VehicleType::Invalid;
 	std::list<Vehicle *> loading_vehicles{};

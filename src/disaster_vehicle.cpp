@@ -29,6 +29,7 @@
 #include "disaster_vehicle.h"
 #include "industry.h"
 #include "station_base.h"
+#include "station_capacity.h"
 #include "command_func.h"
 #include "news_func.h"
 #include "town.h"
@@ -255,6 +256,7 @@ static bool DisasterTick_Zeppeliner(DisasterVehicle *v)
 			if (IsValidTile(v->tile) && IsAirportTile(v->tile)) {
 				v->state = 1;
 				v->age = CalendarTime::MIN_DATE;
+				ApplyStationDisasterPenalty(*Station::GetByTile(v->tile));
 
 				AddTileNewsItem(GetEncodedString(STR_NEWS_DISASTER_ZEPPELIN, GetStationIndex(v->tile)), NewsType::Accident, v->tile);
 				AI::NewEvent(GetTileOwner(v->tile), new ScriptEventDisasterZeppelinerCrashed(GetStationIndex(v->tile)));

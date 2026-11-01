@@ -1404,7 +1404,7 @@ static void MaybeCrashAirplane(Aircraft *v)
 		if (ge.HasData()) ge.GetData().cargo.Truncate();
 	}
 
-	RefreshStationCargoPatienceRatings(*st);
+	ApplyStationDisasterPenalty(*st);
 	CrashAirplane(v);
 }
 

@@ -650,6 +650,7 @@ public:
 
 		SaveLoad::Variable<VarFileType::U8>("time_since_load", SLE_OBJECT_ADDRESS(Station, time_since_load)),
 		SaveLoad::Variable<VarFileType::U8>("time_since_unload", SLE_OBJECT_ADDRESS(Station, time_since_unload)),
+		SaveLoad::Variable<VarFileType::U8>("disaster_rating_periods", SLE_OBJECT_ADDRESS(Station, disaster_rating_periods), SaveLoadVersion::StationDisasterPenalty),
 		SaveLoad::Variable<VarFileType::U8>("last_vehicle_type", SLE_OBJECT_ADDRESS(Station, last_vehicle_type)),
 		SaveLoad::Variable<VarFileType::U8>("had_vehicle_of_type", SLE_OBJECT_ADDRESS(Station, had_vehicle_of_type)),
 		SaveLoad::ReferenceList<SLRefType::Vehicle>("loading_vehicles", SLE_OBJECT_ADDRESS(Station, loading_vehicles)),

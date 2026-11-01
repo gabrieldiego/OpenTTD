@@ -427,6 +427,8 @@ enum class SaveLoadVersion : uint16_t {
 
 	StationCargoPatience, ///< Saveload version: 369. Station cargo patience and waiting age.
 
+	StationDisasterPenalty, ///< Saveload version: 370. Preserve temporary station disaster penalties.
+
 	MaxVersion, ///< Highest possible saveload version.
 };
 

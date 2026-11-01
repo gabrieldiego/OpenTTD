@@ -27,6 +27,7 @@ uint GetStationCargoFreeSpace(const Station &st, CargoType cargo);
 uint16_t GetCargoPatienceDecay(const CargoSpec &cs, uint used, uint capacity);
 uint8_t GetStationOverallPatienceRating(const Station &st);
 void RefreshStationCargoPatienceRatings(Station &st);
+void ApplyStationDisasterPenalty(Station &st);
 uint EnforceStationCargoCapacity(Station &st);
 void UpdateStationCargoPatience(Station &st);
 

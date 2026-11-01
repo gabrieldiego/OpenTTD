@@ -159,6 +159,16 @@ static uint8_t PatienceRating(uint64_t patience, uint64_t count)
 	return static_cast<uint8_t>((patience * MAX_STATION_RATING + denominator / 2) / denominator);
 }
 
+/** A severe airport disaster recovers linearly over 72 rating periods (180 simulation days). */
+static constexpr uint8_t DISASTER_RECOVERY_PERIODS = 72;
+
+static uint8_t ApplyDisasterPenalty(const Station &st, uint8_t rating)
+{
+	if (!_settings_game.station.cargo_patience) return rating;
+	uint penalty = static_cast<uint>(MAX_STATION_RATING - 1) * std::min(st.disaster_rating_periods, DISASTER_RECOVERY_PERIODS) / DISASTER_RECOVERY_PERIODS;
+	return rating > penalty ? rating - penalty : 0;
+}
+
 uint8_t GetStationOverallPatienceRating(const Station &st)
 {
 	uint64_t count = 0, patience = 0;
@@ -166,14 +176,24 @@ uint8_t GetStationOverallPatienceRating(const Station &st)
 		count += total.count;
 		patience += total.patience;
 	}
-	return PatienceRating(patience, count);
+	return ApplyDisasterPenalty(st, PatienceRating(patience, count));
 }
 
 void RefreshStationCargoPatienceRatings(Station &st)
 {
 	if (!_settings_game.station.cargo_patience) return;
 	auto totals = GetCargoPatienceTotals(st);
-	for (CargoType cargo : EnumRange(NUM_CARGO)) st.goods[cargo].rating = PatienceRating(totals[cargo].patience, totals[cargo].count);
+	for (CargoType cargo : EnumRange(NUM_CARGO)) st.goods[cargo].rating = ApplyDisasterPenalty(st, PatienceRating(totals[cargo].patience, totals[cargo].count));
+}
+
+/** Keep the disaster effect even when a crash has emptied every cargo queue. */
+void ApplyStationDisasterPenalty(Station &st)
+{
+	if (!_settings_game.station.cargo_patience) return;
+	st.disaster_rating_periods = DISASTER_RECOVERY_PERIODS;
+	RefreshStationCargoPatienceRatings(st);
+	SetWindowDirty(WindowClass::StationView, st.index);
+	InvalidateWindowData(WindowClass::StationList, st.owner);
 }
 
 /** Shrinking facilities releases the oldest available units first. Cargo already boarding is protected. */
@@ -213,6 +233,7 @@ uint EnforceStationCargoCapacity(Station &st)
 void UpdateStationCargoPatience(Station &st)
 {
 	if (!_settings_game.station.cargo_patience) return;
+	if (st.disaster_rating_periods != 0) --st.disaster_rating_periods;
 	auto capacity = GetStationCargoCapacities(st);
 	auto usage = GetStationCargoUsage(st);
 	uint removed = 0;

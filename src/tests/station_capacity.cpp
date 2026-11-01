@@ -351,3 +351,42 @@ TEST_CASE_METHOD(StationCapacityFixture, "Cargo patience - expiry and partial ev
 	CHECK(list.AvailableCount() == 0);
 	CHECK(list.PeriodsInTransit() == 0);
 }
+
+TEST_CASE_METHOD(StationCapacityFixture, "Station disaster penalty - empty queues stay penalized and recover", "[station-capacity]")
+{
+	Station *st = RailStation();
+	ApplyStationDisasterPenalty(*st);
+	CHECK(st->disaster_rating_periods == 72);
+	CHECK(st->goods[0].rating == 1);
+	CHECK(GetStationOverallPatienceRating(*st) == 1);
+	for (uint i = 0; i < 36; ++i) UpdateStationCargoPatience(*st);
+	CHECK(st->disaster_rating_periods == 36);
+	CHECK(GetStationOverallPatienceRating(*st) == 128);
+	Add(*st, CargoType{0}, 10);
+	RefreshStationCargoPatienceRatings(*st);
+	CHECK(GetStationOverallPatienceRating(*st) == 128); // New arrivals cannot clear the penalty.
+	st->goods[0].GetData().cargo.Truncate();
+	RefreshStationCargoPatienceRatings(*st);
+	CHECK(GetStationOverallPatienceRating(*st) == 128);
+	for (uint i = 0; i < 36; ++i) UpdateStationCargoPatience(*st);
+	CHECK(st->disaster_rating_periods == 0);
+	CHECK(st->goods[0].rating == 255);
+	CHECK(GetStationOverallPatienceRating(*st) == 255);
+}
+
+TEST_CASE_METHOD(StationCapacityFixture, "Station disaster penalty - repeated disasters, patience and classic mode", "[station-capacity]")
+{
+	Station *st = RailStation();
+	Add(*st, CargoType{0}, 10);
+	st->goods[0].GetData().cargo.AgePatience(30000);
+	ApplyStationDisasterPenalty(*st);
+	CHECK(GetStationOverallPatienceRating(*st) == 0);
+	for (uint i = 0; i < 10; ++i) UpdateStationCargoPatience(*st);
+	CHECK(st->disaster_rating_periods == 62);
+	ApplyStationDisasterPenalty(*st);
+	CHECK(st->disaster_rating_periods == 72);
+	_settings_game.station.cargo_patience = false;
+	st->goods[0].rating = 99;
+	ApplyStationDisasterPenalty(*st);
+	CHECK(st->goods[0].rating == 99);
+}
