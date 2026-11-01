@@ -41,6 +41,8 @@ struct CargoPacket : CargoPacketPool::PoolItem<&_cargopacket_pool> {
 private:
 	uint16_t count = 0; ///< The amount of cargo in this packet.
 	uint16_t periods_in_transit = 0; ///< Amount of cargo aging periods this packet has been in transit.
+	uint16_t station_patience = MAX_STATION_PATIENCE; ///< Remaining patience, shared by identically aged units in this packet.
+	uint32_t station_waiting_periods = 0; ///< Cumulative rating periods spent waiting; preserved through transfers.
 
 	Money feeder_share = 0; ///< Value of feeder pickup to be paid for on delivery of cargo.
 
@@ -65,6 +67,10 @@ private:
 public:
 	/** Maximum number of items in a single cargo packet. */
 	static const uint16_t MAX_COUNT = UINT16_MAX;
+	static constexpr uint16_t MAX_STATION_PATIENCE = 60000; ///< Full patience (100%).
+
+	uint16_t GetStationPatience() const { return this->station_patience; }
+	uint32_t GetStationWaitingPeriods() const { return this->station_waiting_periods; }
 
 	CargoPacket(CargoPacketID index);
 	CargoPacket(CargoPacketID index, StationID first_station, uint16_t count, Source source);
@@ -261,6 +267,8 @@ public:
 	{
 		return cp1->source_xy == cp2->source_xy &&
 				cp1->periods_in_transit == cp2->periods_in_transit &&
+				cp1->station_patience == cp2->station_patience &&
+				cp1->station_waiting_periods == cp2->station_waiting_periods &&
 				cp1->first_station == cp2->first_station &&
 				cp1->source == cp2->source;
 	}
@@ -494,7 +502,8 @@ public:
 	template <MoveToAction Tfrom, MoveToAction Tto>
 	uint Reassign(uint max_move);
 	uint Return(uint max_move, StationCargoList *dest, StationID next_station, TileIndex current_tile);
-	uint Unload(uint max_move, StationCargoList *dest, CargoType cargo, CargoPayment *payment, TileIndex current_tile);
+	uint Unload(uint max_move, StationCargoList *dest, CargoType cargo, CargoPayment *payment, TileIndex current_tile, uint max_transfer = UINT_MAX);
+	uint64_t ReservedPatienceSum() const;
 	uint Shift(uint max_move, VehicleCargoList *dest);
 	uint Truncate(uint max_move = UINT_MAX);
 	uint Reroute(uint max_move, VehicleCargoList *dest, StationID avoid, StationID avoid2, const GoodsEntry *ge);
@@ -536,6 +545,8 @@ public:
 	uint ShiftCargo(Taction action, std::span<const StationID> next, bool include_invalid);
 
 	void Append(CargoPacket *cp, StationID next);
+	uint AgePatience(uint16_t decay);
+	uint RemovePacket(CargoPacket *cp, uint max_remove);
 
 	/**
 	 * Check for cargo headed for a specific station.

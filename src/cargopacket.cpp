@@ -80,6 +80,8 @@ CargoPacket::CargoPacket(CargoPacketID index, uint16_t count, Money feeder_share
 		CargoPacketPool::PoolItem<&_cargopacket_pool>(index),
 		count(count),
 		periods_in_transit(original.periods_in_transit),
+		station_patience(original.station_patience),
+		station_waiting_periods(original.station_waiting_periods),
 		feeder_share(feeder_share),
 		source_xy(original.source_xy),
 		travelled(original.travelled),
@@ -641,13 +643,14 @@ uint VehicleCargoList::Shift(uint max_move, VehicleCargoList *dest)
  * @param cargo The cargo type of the cargo.
  * @param payment Payment object to register payments in.
  * @param current_tile Current tile the cargo handling is happening on.
+ * @param max_transfer Free space in the destination storage pool. Direct deliveries do not consume storage.
  * @return Amount of cargo actually unloaded.
  */
-uint VehicleCargoList::Unload(uint max_move, StationCargoList *dest, CargoType cargo, CargoPayment *payment, TileIndex current_tile)
+uint VehicleCargoList::Unload(uint max_move, StationCargoList *dest, CargoType cargo, CargoPayment *payment, TileIndex current_tile, uint max_transfer)
 {
 	uint moved = 0;
 	if (this->action_counts[MoveToAction::Transfer] > 0) {
-		uint move = std::min(this->action_counts[MoveToAction::Transfer], max_move);
+		uint move = std::min({this->action_counts[MoveToAction::Transfer], max_move, max_transfer});
 		this->ShiftCargo(CargoTransfer(this, dest, move, current_tile));
 		moved += move;
 	}
@@ -657,6 +660,20 @@ uint VehicleCargoList::Unload(uint max_move, StationCargoList *dest, CargoType c
 		moved += move;
 	}
 	return moved;
+}
+
+/** Patience of the reserved (boarding) suffix; these units still occupy station storage. */
+uint64_t VehicleCargoList::ReservedPatienceSum() const
+{
+	uint remaining = this->ReservedCount();
+	uint64_t sum = 0;
+	for (auto it = this->packets.rbegin(); it != this->packets.rend() && remaining != 0; ++it) {
+		uint count = std::min<uint>((*it)->Count(), remaining);
+		sum += static_cast<uint64_t>(count) * (*it)->GetStationPatience();
+		remaining -= count;
+	}
+	assert(remaining == 0);
+	return sum;
 }
 
 /**
@@ -715,6 +732,44 @@ void StationCargoList::Append(CargoPacket *cp, StationID next)
 
 	/* The packet could not be merged with another one */
 	list.push_back(cp);
+}
+
+/** Age available cargo uniformly within its storage pool, removing units whose patience expires. */
+uint StationCargoList::AgePatience(uint16_t decay)
+{
+	uint removed = 0;
+	for (Iterator it(this->packets.begin()); it != this->packets.end();) {
+		CargoPacket *cp = *it;
+		if (cp->station_waiting_periods != UINT32_MAX) ++cp->station_waiting_periods;
+		if (cp->station_patience > decay) {
+			cp->station_patience -= decay;
+			++it;
+		} else {
+			removed += cp->count;
+			this->RemoveFromCache(cp, cp->count);
+			it = this->packets.erase(it);
+			delete cp;
+		}
+	}
+	return removed;
+}
+
+/** Remove a known packet (or part of it), maintaining the list's cached counts and transit age. */
+uint StationCargoList::RemovePacket(CargoPacket *cp, uint max_remove)
+{
+	for (Iterator it(this->packets.begin()); it != this->packets.end(); ++it) {
+		if (*it != cp) continue;
+		uint count = std::min<uint>(cp->Count(), max_remove);
+		this->RemoveFromCache(cp, count);
+		if (count == cp->Count()) {
+			this->packets.erase(it);
+			delete cp;
+		} else {
+			cp->Reduce(count);
+		}
+		return count;
+	}
+	return 0;
 }
 
 /**
