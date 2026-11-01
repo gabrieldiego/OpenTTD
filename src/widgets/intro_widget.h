@@ -20,8 +20,6 @@ enum SelectGameIntroWidgets : WidgetID {
 	WID_SGI_PLAY_NETWORK,          ///< Play network button.
 	WID_SGI_BASESET_SELECTION,     ///< Baseset selection.
 	WID_SGI_BASESET,               ///< Baseset errors.
-	WID_SGI_TRANSLATION_SELECTION, ///< Translation selection.
-	WID_SGI_TRANSLATION,           ///< Translation errors.
 	WID_SGI_OPTIONS,               ///< Options button.
 	WID_SGI_HIGHSCORE,             ///< Highscore button.
 	WID_SGI_HELP,                  ///< Help and manuals button.

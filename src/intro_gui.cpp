@@ -91,6 +91,7 @@ struct SelectGameWindow : public Window {
 	uint cur_viewport_command_time = 0;
 	uint mouse_idle_time = 0;
 	Point mouse_idle_pos{};
+	const LanguageMetadata *last_checked_language = nullptr; ///< Avoid repeating translation warnings on every tick or resize.
 
 	/**
 	 * Find and parse all viewport command signs.
@@ -172,6 +173,14 @@ struct SelectGameWindow : public Window {
 
 	void OnRealtimeTick(uint delta_ms) override
 	{
+		/* Wait until the menu is running, and warn once when its language changes. */
+		if (this->last_checked_language != _current_language) {
+			this->last_checked_language = _current_language;
+			if (_current_language->missing >= _settings_client.gui.missing_strings_threshold && !IsReleasedVersion()) {
+				ShowErrorMessage(GetEncodedString(STR_INTRO_TRANSLATION, _current_language->missing), {}, WarningLevel::Warning);
+			}
+		}
+
 		/* Move the main game viewport according to intro viewport commands. */
 
 		if (intro_viewport_commands.empty()) return;
@@ -242,9 +251,6 @@ struct SelectGameWindow : public Window {
 	{
 		bool missing_sprites = _missing_extra_graphics > 0 && !IsReleasedVersion();
 		this->GetWidget<NWidgetStacked>(WID_SGI_BASESET_SELECTION)->SetDisplayedPlane(missing_sprites ? 0 : SZSP_NONE);
-
-		bool missing_lang = _current_language->missing >= _settings_client.gui.missing_strings_threshold && !IsReleasedVersion();
-		this->GetWidget<NWidgetStacked>(WID_SGI_TRANSLATION_SELECTION)->SetDisplayedPlane(missing_lang ? 0 : SZSP_NONE);
 	}
 
 	void DrawWidget(const Rect &r, WidgetID widget) const override
@@ -252,10 +258,6 @@ struct SelectGameWindow : public Window {
 		switch (widget) {
 			case WID_SGI_BASESET:
 				DrawStringMultiLine(r, GetString(STR_INTRO_BASESET, _missing_extra_graphics), TextColour::FromString, {AlignmentH::Centre, AlignmentV::Middle});
-				break;
-
-			case WID_SGI_TRANSLATION:
-				DrawStringMultiLine(r, GetString(STR_INTRO_TRANSLATION, _current_language->missing), TextColour::FromString, {AlignmentH::Centre, AlignmentV::Middle});
 				break;
 		}
 	}
@@ -266,10 +268,6 @@ struct SelectGameWindow : public Window {
 
 		if (NWidgetResizeBase *wid = this->GetWidget<NWidgetResizeBase>(WID_SGI_BASESET); wid != nullptr && wid->current_x > 0) {
 			changed |= wid->UpdateMultilineWidgetSize(GetString(STR_INTRO_BASESET, _missing_extra_graphics), 3);
-		}
-
-		if (NWidgetResizeBase *wid = this->GetWidget<NWidgetResizeBase>(WID_SGI_TRANSLATION); wid != nullptr && wid->current_x > 0) {
-			changed |= wid->UpdateMultilineWidgetSize(GetString(STR_INTRO_TRANSLATION, _current_language->missing), 3);
 		}
 
 		if (changed) this->ReInit(0, 0, this->flags.Test(WindowFlag::Centred));
@@ -348,12 +346,6 @@ static constexpr std::initializer_list<NWidgetPart> _nested_select_game_widgets 
 			NWidget(NWID_SELECTION, Colours::Invalid, WID_SGI_BASESET_SELECTION),
 				NWidget(NWID_VERTICAL),
 					NWidget(WWT_EMPTY, Colours::Invalid, WID_SGI_BASESET), SetFill(1, 0),
-				EndContainer(),
-			EndContainer(),
-
-			NWidget(NWID_SELECTION, Colours::Invalid, WID_SGI_TRANSLATION_SELECTION),
-				NWidget(NWID_VERTICAL),
-					NWidget(WWT_EMPTY, Colours::Invalid, WID_SGI_TRANSLATION), SetFill(1, 0),
 				EndContainer(),
 			EndContainer(),
 
