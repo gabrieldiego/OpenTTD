@@ -6085,3 +6085,7 @@ STR_BADGE_FILTER_ANY_LABEL                                      :Any {STRING}
 STR_CONFIG_SETTING_ROAD_ACCESS_CATCHMENT                         :Road-access station coverage: {STRING2}
 STR_CONFIG_SETTING_ROAD_ACCESS_CATCHMENT_HELPTEXT                 :Use two-tile local coverage and connected-road access for all cargo. Road stops have a fixed four-tile catchment. Train road budgets are 6 for rail/electrified rail, 7 for monorail and 9 for maglev; other facilities use their usual catchment plus 2. Docks require an inland road entrance. This setting can only be selected before starting a game.
 STR_TOOLTIP_PIN_CATCHMENT                                       :Keep this station's coverage highlighted after closing its window
+
+# Capacity and patience-based station ratings
+STR_CONFIG_SETTING_STATION_CARGO_PATIENCE                        :Station capacity and cargo patience: {STRING2}
+STR_CONFIG_SETTING_STATION_CARGO_PATIENCE_HELPTEXT                :Use separate passenger and mail capacities and one shared freight capacity. Facilities add storage; rail and airport technology determine capacity. Waiting cargo loses patience faster in crowded pools and leaves when patience runs out. Ratings equal average remaining patience, or 100% when empty. Full pools refuse new supply and hold transferring vehicles until space becomes available. Only selectable before starting a game.

@@ -21,6 +21,7 @@
 #include "station_base.h"
 #include "station_func.h"
 #include "station_catchment.h"
+#include "station_capacity.h"
 #include "station_kdtree.h"
 #include "roadstop_base.h"
 #include "industry.h"
@@ -73,6 +74,7 @@ Station::Station(StationID index, TileIndex tile) :
 	last_vehicle_type(VehicleType::Invalid)
 {
 	/* this->random_bits is set in Station::AddFacility() */
+	if (_settings_game.station.cargo_patience) for (GoodsEntry &ge : this->goods) ge.rating = MAX_STATION_RATING;
 }
 
 /**

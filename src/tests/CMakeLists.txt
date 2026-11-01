@@ -10,6 +10,7 @@ add_test_files(
     mock_fontcache.h
     mock_spritecache.cpp
     mock_spritecache.h
+    station_capacity.cpp
     station_catchment.cpp
     string_builder.cpp
     string_consumer.cpp
