@@ -1431,6 +1431,20 @@ public:
 		}
 	}
 
+	bool OnTooltip([[maybe_unused]] Point pt, WidgetID widget, TooltipCloseCondition close_cond) override
+	{
+		int hotkey;
+		switch (widget) {
+			case WID_O_SKIP: hotkey = OHK_SKIP; break;
+			case WID_O_UNLOAD: hotkey = OHK_UNLOAD; break;
+			default: return false;
+		}
+		std::string shortcut = hotkeys.GetDisplayString(hotkey);
+		if (shortcut.empty()) return false;
+		GuiShowTooltips(this, GetEncodedString(STR_JUST_RAW_STRING, GetString(this->GetWidget<NWidgetCore>(widget)->GetToolTip()) + "\n(" + shortcut + ")"), close_cond);
+		return true;
+	}
+
 	EventState OnHotkey(int hotkey) override
 	{
 		if (this->vehicle->owner != _local_company) return EventState::NotHandled;
