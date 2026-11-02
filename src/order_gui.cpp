@@ -1448,6 +1448,7 @@ public:
 	EventState OnHotkey(int hotkey) override
 	{
 		if (this->vehicle->owner != _local_company) return EventState::NotHandled;
+		if (hotkey == OHK_UNLOAD && this->vehicle->GetOrder(this->OrderGetSel()) == nullptr) return EventState::NotHandled;
 
 		switch (hotkey) {
 			case OHK_SKIP:           this->OrderClick_Skip(); break;
@@ -1572,12 +1573,12 @@ public:
 	}
 
 	static inline HotkeyList hotkeys{"order", {
-		Hotkey('D', "skip", OHK_SKIP),
+		Hotkey('K', "skip", OHK_SKIP),
 		Hotkey('F', "delete", OHK_DELETE),
 		Hotkey('G', "goto", OHK_GOTO),
 		Hotkey('H', "nonstop", OHK_NONSTOP),
 		Hotkey('J', "fullload", OHK_FULLLOAD),
-		Hotkey('K', "unload", OHK_UNLOAD),
+		Hotkey('U', "unload", OHK_UNLOAD),
 		Hotkey(0, "nearest_depot", OHK_NEAREST_DEPOT),
 		Hotkey(0, "always_service", OHK_ALWAYS_SERVICE),
 		Hotkey(0, "transfer", OHK_TRANSFER),
