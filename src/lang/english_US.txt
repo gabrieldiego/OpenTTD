@@ -384,7 +384,7 @@ STR_GOTO_ORDER_VIEW_TOOLTIP                                     :{BLACK}Open the
 # Tooltips for the main toolbar
 ###length 31
 STR_TOOLBAR_TOOLTIP_PAUSE_GAME                                  :{BLACK}Pause game
-STR_TOOLBAR_TOOLTIP_FORWARD                                     :{BLACK}Fast forward the game
+STR_TOOLBAR_TOOLTIP_FORWARD                                     :{BLACK}Click to toggle fast forward. Hold Tab to fast forward temporarily
 STR_TOOLBAR_TOOLTIP_OPTIONS                                     :{BLACK}Options and settings
 STR_TOOLBAR_TOOLTIP_SAVE_GAME_ABANDON_GAME                      :{BLACK}Save, load or abandon game, exit program
 STR_TOOLBAR_TOOLTIP_DISPLAY_MAP                                 :{BLACK}Open map, extra viewport, cargo flow or list of signs
@@ -6083,3 +6083,5 @@ STR_STATION_CAPACITY_FREIGHT                                    :Shared freight
 STR_STATION_CAPACITY_TOOLTIP                                    :Waiting cargo / storage capacity and percentage used. Passengers and mail have independent storage; all other cargo shares the freight pool. Units already boarding still use storage. Rating is the cargo-weighted average remaining patience, or 100% when empty. Disaster penalties reduce ratings temporarily and recover over 180 simulation days.
 
 STR_VEHICLE_VIEW_AIRCRAFT_RANGE_TOOLTIP                          :Toggle aircraft range in muted blue and airports within range in white. Available while stopped in an airport hangar. Unlimited range covers the whole map.
+
+STR_TOOLBAR_TOOLTIP_FORWARD_SHORTCUT                            :Toggle shortcut: {RAW_STRING}

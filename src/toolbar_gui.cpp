@@ -1508,7 +1508,13 @@ static bool ShowToolbarTooltip(Window *w, WidgetID widget, TooltipCloseCondition
 	std::string shortcut = GetToolbarShortcut(w, widget);
 	if (shortcut.empty()) return false;
 	StringID tooltip = w->GetWidget<NWidgetCore>(widget)->GetToolTip();
-	GuiShowTooltips(w, GetEncodedString(STR_JUST_RAW_STRING, GetString(tooltip) + "\n(" + shortcut + ")"), close_cond);
+	std::string text = GetString(tooltip);
+	if (tooltip == STR_TOOLBAR_TOOLTIP_FORWARD) {
+		text += "\n" + GetString(STR_TOOLBAR_TOOLTIP_FORWARD_SHORTCUT, shortcut);
+	} else {
+		text += "\n(" + shortcut + ")";
+	}
+	GuiShowTooltips(w, GetEncodedString(STR_JUST_RAW_STRING, text), close_cond);
 	return true;
 }
 
