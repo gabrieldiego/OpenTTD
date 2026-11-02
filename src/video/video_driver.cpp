@@ -137,8 +137,8 @@ void VideoDriver::Tick()
 			while (this->PollEvent()) {}
 			this->InputLoop();
 
-			/* Check if the fast-forward button is still pressed. */
-			if (fast_forward_key_pressed && !_networking && _game_mode != GameMode::Menu) {
+			/* Leave Ctrl+Tab available for configurable hotkeys. */
+			if (fast_forward_key_pressed && !_ctrl_pressed && !_networking && _game_mode != GameMode::Menu) {
 				ChangeGameSpeed(true);
 				this->fast_forward_via_key = true;
 			} else if (this->fast_forward_via_key) {

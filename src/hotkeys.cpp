@@ -41,6 +41,7 @@ static const std::initializer_list<KeycodeNames> _keycode_to_name = {
 	{"GLOBAL", WKC_GLOBAL_HOTKEY},
 	{"ESC", WKC_ESC},
 	{"BACKSPACE", WKC_BACKSPACE},
+	{"TAB", WKC_TAB},
 	{"INS", WKC_INSERT},
 	{"DEL", WKC_DELETE},
 	{"PAGEUP", WKC_PAGEUP},
