@@ -6099,3 +6099,6 @@ STR_STATION_CAPACITY_TOOLTIP                                    :Waiting cargo /
 STR_VEHICLE_VIEW_AIRCRAFT_RANGE_TOOLTIP                          :Toggle aircraft range in muted blue and airports within range in white. Available while stopped in an airport hangar. Unlimited range covers the whole map.
 
 STR_TOOLBAR_TOOLTIP_FORWARD_SHORTCUT                            :Toggle shortcut: {RAW_STRING}
+
+STR_INTRO_LOAD_LAST_AUTOSAVE                                    :{BLACK}Load Last Autosave
+STR_INTRO_TOOLTIP_LOAD_LAST_AUTOSAVE                            :{BLACK}Load the newest autosave in this profile

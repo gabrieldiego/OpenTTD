@@ -715,6 +715,16 @@ void ScanScenarios()
 	_scanner.Scan(true);
 }
 
+/** Find the first autosave in the file browser's newest-first date ordering. */
+std::optional<FiosItem> FiosGetLatestAutosave()
+{
+	FileList list;
+	FiosFileScanner scanner(SaveLoadOperation::Load, FiosGetSavegameListCallback, list);
+	scanner.Scan(".sav", FioFindDirectory(Subdirectory::Autosave), false);
+	if (list.empty()) return std::nullopt;
+	return *std::ranges::max_element(list, FiosItemModificationDateSorter);
+}
+
 /**
  * Constructs FiosNumberedSaveName. Initial number is the most recent save, or -1 if not found.
  * @param prefix The prefix to use to generate a filename.

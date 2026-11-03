@@ -102,6 +102,7 @@ bool FiosItemModificationDateSorter(const FiosItem &a, const FiosItem &b);
 void ShowSaveLoadDialog(AbstractFileType abstract_filetype, SaveLoadOperation fop);
 
 void FiosGetSavegameList(SaveLoadOperation fop, bool show_dirs, FileList &file_list);
+std::optional<FiosItem> FiosGetLatestAutosave();
 void FiosGetScenarioList(SaveLoadOperation fop, bool show_dirs, FileList &file_list);
 void FiosGetHeightmapList(SaveLoadOperation fop, bool show_dirs, FileList &file_list);
 void FiosGetTownDataList(SaveLoadOperation fop, bool show_dirs, FileList &file_list);

@@ -14,6 +14,7 @@
 enum SelectGameIntroWidgets : WidgetID {
 	WID_SGI_GENERATE_GAME,         ///< Generate game button.
 	WID_SGI_LOAD_GAME,             ///< Load game button.
+	WID_SGI_LOAD_LAST_AUTOSAVE,    ///< Load the newest autosave.
 	WID_SGI_PLAY_SCENARIO,         ///< Play scenario button.
 	WID_SGI_PLAY_HEIGHTMAP,        ///< Play heightmap button.
 	WID_SGI_EDIT_SCENARIO,         ///< Edit scenario button.

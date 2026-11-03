@@ -22,6 +22,7 @@
 #include "landscape.h"
 #include "strings_func.h"
 #include "fios.h"
+#include "saveload/saveload_func.h"
 #include "gfx_func.h"
 #include "core/string_consumer.hpp"
 #include "language.h"
@@ -251,6 +252,7 @@ struct SelectGameWindow : public Window {
 	{
 		bool missing_sprites = _missing_extra_graphics > 0 && !IsReleasedVersion();
 		this->GetWidget<NWidgetStacked>(WID_SGI_BASESET_SELECTION)->SetDisplayedPlane(missing_sprites ? 0 : SZSP_NONE);
+		this->SetWidgetDisabledState(WID_SGI_LOAD_LAST_AUTOSAVE, !FiosGetLatestAutosave().has_value());
 	}
 
 	void DrawWidget(const Rect &r, WidgetID widget) const override
@@ -287,6 +289,15 @@ struct SelectGameWindow : public Window {
 			case WID_SGI_LOAD_GAME:
 				_is_network_server = false;
 				ShowSaveLoadDialog(AbstractFileType::Savegame, SaveLoadOperation::Load);
+				break;
+			case WID_SGI_LOAD_LAST_AUTOSAVE:
+				if (auto autosave = FiosGetLatestAutosave(); autosave.has_value()) {
+					_is_network_server = false;
+					_file_to_saveload.Set(*autosave);
+					_switch_mode = SwitchMode::LoadGame;
+				} else {
+					this->SetWidgetDisabledState(WID_SGI_LOAD_LAST_AUTOSAVE, true);
+				}
 				break;
 			case WID_SGI_PLAY_SCENARIO:
 				_is_network_server = false;
@@ -335,6 +346,7 @@ static constexpr std::initializer_list<NWidgetPart> _nested_select_game_widgets 
 				NWidget(WWT_PUSHIMGTEXTBTN, Colours::Orange, WID_SGI_PLAY_HEIGHTMAP), SetToolbarMinimalSize(1), SetSpriteStringTip(SPR_IMG_SHOW_COUNTOURS, STR_INTRO_PLAY_HEIGHTMAP, STR_INTRO_TOOLTIP_PLAY_HEIGHTMAP), SetAlignment({AlignmentH::Start, AlignmentV::Middle}), SetFill(1, 0),
 				NWidget(WWT_PUSHIMGTEXTBTN, Colours::Orange, WID_SGI_PLAY_SCENARIO), SetToolbarMinimalSize(1), SetSpriteStringTip(SPR_IMG_SUBSIDIES, STR_INTRO_PLAY_SCENARIO, STR_INTRO_TOOLTIP_PLAY_SCENARIO), SetAlignment({AlignmentH::Start, AlignmentV::Middle}), SetFill(1, 0),
 				NWidget(WWT_PUSHIMGTEXTBTN, Colours::Orange, WID_SGI_LOAD_GAME), SetToolbarMinimalSize(1), SetSpriteStringTip(SPR_IMG_SAVE, STR_INTRO_LOAD_GAME, STR_INTRO_TOOLTIP_LOAD_GAME), SetAlignment({AlignmentH::Start, AlignmentV::Middle}), SetFill(1, 0),
+				NWidget(WWT_PUSHIMGTEXTBTN, Colours::Orange, WID_SGI_LOAD_LAST_AUTOSAVE), SetToolbarMinimalSize(1), SetSpriteStringTip(SPR_IMG_SAVE, STR_INTRO_LOAD_LAST_AUTOSAVE, STR_INTRO_TOOLTIP_LOAD_LAST_AUTOSAVE), SetAlignment({AlignmentH::Start, AlignmentV::Middle}), SetFill(1, 0),
 				NWidget(WWT_PUSHIMGTEXTBTN, Colours::Orange, WID_SGI_HIGHSCORE), SetToolbarMinimalSize(1), SetSpriteStringTip(SPR_IMG_COMPANY_LEAGUE, STR_INTRO_HIGHSCORE, STR_INTRO_TOOLTIP_HIGHSCORE), SetAlignment({AlignmentH::Start, AlignmentV::Middle}), SetFill(1, 0),
 			EndContainer(),
 
