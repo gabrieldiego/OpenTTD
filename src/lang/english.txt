@@ -6102,3 +6102,6 @@ STR_TOOLBAR_TOOLTIP_FORWARD_SHORTCUT                            :Toggle shortcut
 
 STR_INTRO_LOAD_LAST_AUTOSAVE                                    :{BLACK}Load Last Autosave
 STR_INTRO_TOOLTIP_LOAD_LAST_AUTOSAVE                            :{BLACK}Load the newest autosave in this profile
+
+STR_CONFIG_SETTING_MAX_NUM_AUTOSAVES                            :Number of autosave files to keep: {STRING2}
+STR_CONFIG_SETTING_MAX_NUM_AUTOSAVES_HELPTEXT                    :Number of numbered autosaves to keep before rotating through the same filenames again. This does not delete existing files. Ignored when keeping all autosaves with timestamped names.
