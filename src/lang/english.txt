@@ -6105,3 +6105,13 @@ STR_INTRO_TOOLTIP_LOAD_LAST_AUTOSAVE                            :{BLACK}Load the
 
 STR_CONFIG_SETTING_MAX_NUM_AUTOSAVES                            :Number of autosave files to keep: {STRING2}
 STR_CONFIG_SETTING_MAX_NUM_AUTOSAVES_HELPTEXT                    :Number of numbered autosaves to keep before rotating through the same filenames again. This does not delete existing files. Ignored when keeping all autosaves with timestamped names.
+
+STR_CATALOG_BUTTON                                            :{BLACK}Vehicle catalog
+STR_CATALOG_BUTTON_TOOLTIP                                    :{BLACK}Preview all vehicles in the selected NewGRFs before starting a game, including past and future models
+STR_CATALOG_CAPTION                                           :{WHITE}Vehicle catalog
+STR_CATALOG_TYPE_TOOLTIP                                      :{BLACK}Choose trains, road vehicles, ships or aircraft
+STR_CATALOG_COMPARISON                                        :{BLACK}Costs at 1 Jan 1950; estimated model dates
+STR_CATALOG_COMPARISON_TOOLTIP                                :{BLACK}Purchase and running costs use the selected new-game settings, NewGRF price modifiers and inflation at 1 January 1950, regardless of introduction year. Introduction and phase-out dates vary with the new game's random seed. Phase-out is the model's estimated withdrawal from sale, not a vehicle's lifespan; the global engine-aging cutoff may prevent retirement.
+STR_CATALOG_INTRODUCTION                                      :{BLACK}Introduction: {GOLD}{NUM}
+STR_CATALOG_PHASE_OUT                                         :{BLACK}Phase-out (estimated): {GOLD}{NUM}
+STR_CATALOG_NO_PHASE_OUT                                      :{BLACK}Phase-out: {GOLD}None

@@ -27,6 +27,11 @@ enum BuildVehicleWidgets : WidgetID {
 	WID_BV_RENAME,                    ///< Rename button.
 	WID_BV_CONFIGURE_BADGES, ///< Button to configure badges.
 	WID_BV_BADGE_FILTER, ///< Container for dropdown badge filters.
+	WID_BV_CATALOG_SEL, ///< Optional catalog controls.
+	WID_BV_CATALOG_TYPE, ///< Vehicle type in the catalog.
+	WID_BV_CATALOG_NOTE, ///< Fixed comparison year and date explanation.
+	WID_BV_EDIT_SEL, ///< Hide editing buttons in the catalog.
+	WID_BV_CATALOG_CLOSE, ///< Close the catalog and return to NewGRF selection.
 };
 
 #endif /* WIDGETS_BUILD_VEHICLE_WIDGET_H */

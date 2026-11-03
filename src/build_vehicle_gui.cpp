@@ -40,6 +40,7 @@
 #include "querystring_gui.h"
 #include "stringfilter_type.h"
 #include "hotkeys.h"
+#include "economy_func.h"
 
 #include "widgets/build_vehicle_widget.h"
 
@@ -64,6 +65,12 @@ static constexpr std::initializer_list<NWidgetPart> _nested_build_vehicle_widget
 		NWidget(WWT_SHADEBOX, Colours::Grey),
 		NWidget(WWT_DEFSIZEBOX, Colours::Grey),
 		NWidget(WWT_STICKYBOX, Colours::Grey),
+	EndContainer(),
+	NWidget(NWID_SELECTION, Colours::Invalid, WID_BV_CATALOG_SEL),
+		NWidget(WWT_PANEL, Colours::Grey),
+			NWidget(WWT_DROPDOWN, Colours::Grey, WID_BV_CATALOG_TYPE), SetFill(1, 0), SetResize(1, 0), SetToolTip(STR_CATALOG_TYPE_TOOLTIP),
+			NWidget(WWT_TEXT, Colours::Invalid, WID_BV_CATALOG_NOTE), SetFill(1, 0), SetResize(1, 0), SetStringTip(STR_CATALOG_COMPARISON, STR_CATALOG_COMPARISON_TOOLTIP),
+		EndContainer(),
 	EndContainer(),
 	NWidget(NWID_VERTICAL),
 		NWidget(NWID_HORIZONTAL),
@@ -93,8 +100,13 @@ static constexpr std::initializer_list<NWidgetPart> _nested_build_vehicle_widget
 		NWidget(NWID_SELECTION, Colours::Invalid, WID_BV_BUILD_SEL),
 			NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_BV_BUILD), SetResize(1, 0), SetFill(1, 0),
 		EndContainer(),
-		NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_BV_SHOW_HIDE), SetResize(1, 0), SetFill(1, 0),
-		NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_BV_RENAME), SetResize(1, 0), SetFill(1, 0),
+		NWidget(NWID_SELECTION, Colours::Invalid, WID_BV_EDIT_SEL),
+			NWidget(NWID_HORIZONTAL),
+				NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_BV_SHOW_HIDE), SetResize(1, 0), SetFill(1, 0),
+				NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_BV_RENAME), SetResize(1, 0), SetFill(1, 0),
+			EndContainer(),
+			NWidget(WWT_PUSHTXTBTN, Colours::Grey, WID_BV_CATALOG_CLOSE), SetResize(1, 0), SetFill(1, 0), SetStringTip(STR_GOAL_QUESTION_BUTTON_CLOSE, STR_TOOLTIP_CLOSE_WINDOW),
+		EndContainer(),
 		NWidget(WWT_RESIZEBOX, Colours::Grey),
 	EndContainer(),
 };
@@ -998,7 +1010,7 @@ void DrawEngineList(VehicleType type, const Rect &r, const GUIEngineList &eng_li
 		tr = tr.Indent(circle_width + WidgetDimensions::scaled.hsep_normal, rtl);
 
 		/* Note: num_engines is only used in the autoreplace GUI, so it is correct to use _local_company here. */
-		const uint num_engines = GetGroupNumEngines(_local_company, selected_group, item.engine_id);
+		const uint num_engines = show_count ? GetGroupNumEngines(_local_company, selected_group, item.engine_id) : 0;
 		const PaletteID pal = (show_count && num_engines == 0) ? PALETTE_CRASH : GetEnginePalette(item.engine_id, _local_company);
 
 		if (badge_column_widths.size() >= 1 && badge_column_widths[0] > 0) {
@@ -1213,8 +1225,61 @@ void GUIEngineListAddChildren(GUIEngineList &dst, const GUIEngineList &src, Engi
 	}
 }
 
-/** GUI for building vehicles. */
+/**
+ * Temporarily load a pre-game NewGRF selection using new-game settings and 1950 prices.
+ * The title world stays paused until the catalog closes. No new-game settings or
+ * NewGRF selections are saved by previewing, and an existing game cannot enter this mode.
+ */
+class VehicleCatalogContext {
+	GameSettings settings = _settings_game;
+	Economy economy = _economy;
+	PauseModes pause = _pause_mode;
+	SavedRandomSeeds random{};
+	GRFConfigList config{};
+	EngineOverrideManager mappings = _engine_mngr;
+	TimerGameCalendar::Date date = TimerGameCalendar::date;
+	TimerGameCalendar::DateFract date_fract = TimerGameCalendar::date_fract;
+
+public:
+	explicit VehicleCatalogContext(const GRFConfigList &selection)
+	{
+		assert(_game_mode == GameMode::Menu);
+		SaveRandomSeeds(&this->random);
+		CopyGRFConfigList(this->config, _grfconfig, false);
+		CopyGRFConfigList(_grfconfig, selection, false);
+		AppendStaticGRFConfigs(_grfconfig);
+		_settings_game = _settings_newgame;
+		_settings_game.game_creation.starting_year = TimerGameCalendar::Year{1950};
+		TimerGameCalendar::SetDate(TimerGameCalendar::ConvertYMDToDate(TimerGameCalendar::Year{1950}, 0, 1), 0);
+		_pause_mode.Set(PauseMode::Normal);
+
+		/* Use the same pre-start inflation as a game beginning in 1950. */
+		_economy.inflation_prices = _economy.inflation_payment = 1 << 16;
+		_economy.interest_rate = _settings_game.difficulty.initial_interest;
+		_economy.infl_amount = _settings_game.difficulty.initial_interest;
+		_economy.infl_amount_pr = std::max(0, _settings_game.difficulty.initial_interest - 1);
+		if (_settings_game.economy.inflation) {
+			for (int month = 0; month < (1950 - CalendarTime::ORIGINAL_BASE_YEAR.base()) * 12; ++month) AddInflation(false);
+		}
+		ReloadNewGRFData();
+	}
+
+	~VehicleCatalogContext()
+	{
+		_settings_game = this->settings;
+		_economy = this->economy;
+		TimerGameCalendar::SetDate(this->date, this->date_fract);
+		_grfconfig = std::move(this->config);
+		_engine_mngr = std::move(this->mappings);
+		if (!_exit_game) ReloadNewGRFData();
+		RestoreRandomSeeds(this->random);
+		_pause_mode = this->pause;
+	}
+};
+
+/** GUI for building vehicles, or browsing all models before starting a game. */
 struct BuildVehicleWindow : Window {
+	std::unique_ptr<VehicleCatalogContext> catalog; ///< Owns the temporary preview environment, when present.
 	VehicleType vehicle_type = VehicleType::Invalid; ///< Type of vehicles shown in the window.
 	union {
 		RailType railtype;   ///< Rail type to show, or #INVALID_RAILTYPE.
@@ -1255,9 +1320,10 @@ struct BuildVehicleWindow : Window {
 		}
 	}
 
-	BuildVehicleWindow(WindowDesc &desc, TileIndex tile, VehicleType type) : Window(desc), vehicle_editbox(MAX_LENGTH_VEHICLE_NAME_CHARS * MAX_CHAR_LENGTH, MAX_LENGTH_VEHICLE_NAME_CHARS)
+	BuildVehicleWindow(WindowDesc &desc, TileIndex tile, VehicleType type, std::unique_ptr<VehicleCatalogContext> catalog = nullptr) : Window(desc), catalog(std::move(catalog)), vehicle_editbox(MAX_LENGTH_VEHICLE_NAME_CHARS * MAX_CHAR_LENGTH, MAX_LENGTH_VEHICLE_NAME_CHARS)
 	{
 		this->vehicle_type = type;
+		this->cargo_filter_criteria = CargoFilterCriteria::CF_ANY;
 		this->listview_mode = tile == INVALID_TILE;
 		this->window_number = this->listview_mode ? (int)type : tile.base();
 
@@ -1268,6 +1334,9 @@ struct BuildVehicleWindow : Window {
 		this->UpdateFilterByTile();
 
 		this->CreateNestedTree();
+		this->GetWidget<NWidgetStacked>(WID_BV_CATALOG_SEL)->SetDisplayedPlane(this->catalog ? 0 : SZSP_NONE);
+		this->GetWidget<NWidgetStacked>(WID_BV_EDIT_SEL)->SetDisplayedPlane(this->catalog ? 1 : 0);
+		if (this->catalog) this->show_hidden_engines = true;
 
 		this->vscroll = this->GetScrollbar(WID_BV_SCROLLBAR);
 
@@ -1290,7 +1359,9 @@ struct BuildVehicleWindow : Window {
 
 		this->details_height = ((this->vehicle_type == VehicleType::Train) ? 10 : 9);
 
-		if (tile == INVALID_TILE) {
+		if (this->catalog) {
+			this->FinishInitNested(GameOptionsWindowNumber::VehicleCatalog);
+		} else if (tile == INVALID_TILE) {
 			this->FinishInitNested(type);
 		} else {
 			this->FinishInitNested(tile);
@@ -1309,6 +1380,18 @@ struct BuildVehicleWindow : Window {
 		auto it = std::ranges::find_if(this->eng_list, [](const GUIEngineListItem &item) { return !item.flags.Test(EngineDisplayFlag::Shaded); });
 		if (it != this->eng_list.end()) engine = it->engine_id;
 		this->SelectEngine(engine);
+	}
+
+	void Close(int data = 0) override
+	{
+		this->Window::Close(data);
+		/* Restore before a new game can start, rather than waiting for window deletion. */
+		this->catalog.reset();
+	}
+
+	bool IsListedEngine(const Engine *e) const
+	{
+		return this->catalog ? e->IsEnabled() : IsEngineBuildable(e->index, this->vehicle_type, _local_company);
 	}
 
 	/** Set the filter type according to the depot type */
@@ -1355,7 +1438,7 @@ struct BuildVehicleWindow : Window {
 	void SetCargoFilterArray()
 	{
 		/* Set the last cargo filter criteria. */
-		this->cargo_filter_criteria = _engine_sort_last_cargo_criteria[this->vehicle_type];
+		if (!this->catalog) this->cargo_filter_criteria = _engine_sort_last_cargo_criteria[this->vehicle_type];
 		if (this->cargo_filter_criteria < NUM_CARGO && !_standard_cargo_mask.Test(this->cargo_filter_criteria)) this->cargo_filter_criteria = CargoFilterCriteria::CF_ANY;
 
 		this->eng_list.SetFilterFuncs(_engine_filter_funcs);
@@ -1463,12 +1546,12 @@ struct BuildVehicleWindow : Window {
 		 * and if not, reset selection to EngineID::Invalid(). This could be the case
 		 * when engines become obsolete and are removed */
 		for (const Engine *e : Engine::IterateType(VehicleType::Train)) {
-			if (!this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
+			if (!this->catalog && !this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
 			EngineID eid = e->index;
 			const RailVehicleInfo *rvi = &e->VehInfo<RailVehicleInfo>();
 
 			if (this->filter.railtype != INVALID_RAILTYPE && !HasPowerOnRail(rvi->railtypes, this->filter.railtype)) continue;
-			if (!IsEngineBuildable(eid, VehicleType::Train, _local_company)) continue;
+			if (!this->IsListedEngine(e)) continue;
 
 			/* Filter now! So num_engines and num_wagons is valid */
 			if (!FilterSingleEngine(eid)) continue;
@@ -1528,9 +1611,9 @@ struct BuildVehicleWindow : Window {
 		BadgeDropdownFilter bdf(this->badge_filter_choices);
 
 		for (const Engine *e : Engine::IterateType(VehicleType::Road)) {
-			if (!this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
+			if (!this->catalog && !this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
 			EngineID eid = e->index;
-			if (!IsEngineBuildable(eid, VehicleType::Road, _local_company)) continue;
+			if (!this->IsListedEngine(e)) continue;
 			if (this->filter.roadtype != INVALID_ROADTYPE && !HasPowerOnRoad(e->VehInfo<RoadVehicleInfo>().roadtype, this->filter.roadtype)) continue;
 			if (!bdf.Filter(e->badges)) continue;
 
@@ -1554,9 +1637,9 @@ struct BuildVehicleWindow : Window {
 		BadgeDropdownFilter bdf(this->badge_filter_choices);
 
 		for (const Engine *e : Engine::IterateType(VehicleType::Ship)) {
-			if (!this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
+			if (!this->catalog && !this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
 			EngineID eid = e->index;
-			if (!IsEngineBuildable(eid, VehicleType::Ship, _local_company)) continue;
+			if (!this->IsListedEngine(e)) continue;
 			if (!bdf.Filter(e->badges)) continue;
 
 			/* Filter by name or NewGRF extra text */
@@ -1586,9 +1669,9 @@ struct BuildVehicleWindow : Window {
 		 * and if not, reset selection to EngineID::Invalid(). This could be the case
 		 * when planes become obsolete and are removed */
 		for (const Engine *e : Engine::IterateType(VehicleType::Aircraft)) {
-			if (!this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
+			if (!this->catalog && !this->show_hidden_engines && e->IsVariantHidden(_local_company)) continue;
 			EngineID eid = e->index;
-			if (!IsEngineBuildable(eid, VehicleType::Aircraft, _local_company)) continue;
+			if (!this->IsListedEngine(e)) continue;
 			/* First VEH_END window_numbers are fake to allow a window open for all different types at once */
 			if (!this->listview_mode && !CanVehicleUseStation(eid, st)) continue;
 			if (!bdf.Filter(e->badges)) continue;
@@ -1722,6 +1805,19 @@ struct BuildVehicleWindow : Window {
 	void OnClick([[maybe_unused]] Point pt, WidgetID widget, [[maybe_unused]] int click_count) override
 	{
 		switch (widget) {
+			case WID_BV_CATALOG_CLOSE:
+				if (this->catalog) this->Close();
+				break;
+
+			case WID_BV_CATALOG_TYPE: {
+				DropDownList list;
+				for (VehicleType type : EnumRange(VehicleType::CompanyEnd)) {
+					list.push_back(MakeDropDownListStringItem(STR_VEHICLE_LIST_AVAILABLE_TRAINS + to_underlying(type), to_underlying(type)));
+				}
+				ShowDropDownList(this, std::move(list), to_underlying(this->vehicle_type), widget);
+				break;
+			}
+
 			case WID_BV_SORT_ASCENDING_DESCENDING:
 				this->descending_sort_order ^= true;
 				_engine_sort_last_order[this->vehicle_type] = this->descending_sort_order;
@@ -1730,6 +1826,7 @@ struct BuildVehicleWindow : Window {
 				break;
 
 			case WID_BV_SHOW_HIDDEN_ENGINES:
+				if (this->catalog) break;
 				this->show_hidden_engines ^= true;
 				_engine_sort_show_hidden_engines[this->vehicle_type] = this->show_hidden_engines;
 				this->eng_list.ForceRebuild();
@@ -1748,6 +1845,10 @@ struct BuildVehicleWindow : Window {
 						assert(item.variant_id != EngineID::Invalid());
 						Engine *engine = Engine::Get(item.variant_id);
 						engine->display_flags.Flip(EngineDisplayFlag::IsFolded);
+						if (this->catalog) {
+							this->eng_list.ForceRebuild();
+							this->SetDirty();
+						}
 
 						InvalidateWindowData(WindowClass::ReplaceVehicle, this->vehicle_type, 0); // Update the autoreplace window
 						InvalidateWindowClassesData(WindowClass::BuildVehicle); // The build windows needs updating as well
@@ -1781,6 +1882,7 @@ struct BuildVehicleWindow : Window {
 				break;
 
 			case WID_BV_SHOW_HIDE: {
+				if (this->catalog) break;
 				const Engine *e = (this->sel_engine == EngineID::Invalid()) ? nullptr : Engine::Get(this->sel_engine);
 				if (e != nullptr) {
 					Command<Commands::SetVehicleVisibility>::Post(this->sel_engine, !e->IsHidden(_current_company));
@@ -1789,10 +1891,12 @@ struct BuildVehicleWindow : Window {
 			}
 
 			case WID_BV_BUILD:
+				if (this->listview_mode) break;
 				this->BuildVehicle();
 				break;
 
 			case WID_BV_RENAME: {
+				if (this->catalog) break;
 				EngineID sel_eng = this->sel_engine;
 				if (sel_eng != EngineID::Invalid()) {
 					this->rename_engine = sel_eng;
@@ -1803,7 +1907,8 @@ struct BuildVehicleWindow : Window {
 
 			default:
 				if (IsInsideMM(widget, this->badge_filters.first, this->badge_filters.second)) {
-					PaletteID palette = SPR_2CCMAP_BASE + Company::Get(_local_company)->GetCompanyRecolourOffset(LiveryScheme::Default);
+					PaletteID palette = SPR_2CCMAP_BASE;
+					if (const Company *company = Company::GetIfValid(_local_company); company != nullptr) palette += company->GetCompanyRecolourOffset(LiveryScheme::Default);
 					ShowDropDownList(this, this->GetWidget<NWidgetBadgeFilter>(widget)->GetDropDownList(palette), -1, widget, 0, DropDownOption::Filterable);
 				}
 				break;
@@ -1831,7 +1936,11 @@ struct BuildVehicleWindow : Window {
 	std::string GetWidgetString(WidgetID widget, StringID stringid) const override
 	{
 		switch (widget) {
+			case WID_BV_CATALOG_TYPE:
+				return GetString(STR_VEHICLE_LIST_AVAILABLE_TRAINS + to_underlying(this->vehicle_type));
+
 			case WID_BV_CAPTION:
+				if (this->catalog) return GetString(STR_CATALOG_CAPTION);
 				if (this->vehicle_type == VehicleType::Train && !this->listview_mode) {
 					const RailTypeInfo *rti = GetRailTypeInfo(this->filter.railtype);
 					return GetString(rti->strings.build_caption);
@@ -1939,10 +2048,11 @@ struct BuildVehicleWindow : Window {
 		this->GenerateBuildList();
 		this->vscroll->SetCount(this->eng_list.size());
 
-		this->SetWidgetsDisabledState(this->sel_engine == EngineID::Invalid(), WID_BV_SHOW_HIDE, WID_BV_BUILD);
+		this->SetWidgetsDisabledState(this->catalog || this->sel_engine == EngineID::Invalid(), WID_BV_SHOW_HIDE, WID_BV_BUILD);
+		this->SetWidgetDisabledState(WID_BV_SHOW_HIDDEN_ENGINES, this->catalog != nullptr);
 
 		/* Disable renaming engines in network games if you are not the server. */
-		this->SetWidgetDisabledState(WID_BV_RENAME, this->sel_engine == EngineID::Invalid() || (_networking && !_network_server));
+		this->SetWidgetDisabledState(WID_BV_RENAME, this->catalog || this->sel_engine == EngineID::Invalid() || (_networking && !_network_server));
 
 		this->DrawWidgets();
 
@@ -1952,6 +2062,14 @@ struct BuildVehicleWindow : Window {
 			if (this->sel_engine != EngineID::Invalid()) {
 				const Rect r = this->GetWidget<NWidgetBase>(WID_BV_PANEL)->GetCurrentRect().Shrink(WidgetDimensions::scaled.framerect);
 				int text_end = DrawVehiclePurchaseInfo(r.left, r.right, r.top, this->sel_engine, this->te);
+				if (this->catalog) {
+					const Engine *e = Engine::Get(this->sel_engine);
+					DrawString(r.left, r.right, text_end, GetString(STR_CATALOG_INTRODUCTION, TimerGameCalendar::ConvertDateToYMD(e->intro_date).year));
+					text_end += GetCharacterHeight(FontSize::Normal);
+					auto retirement = e->GetRetirementDate();
+					DrawString(r.left, r.right, text_end, retirement ? GetString(STR_CATALOG_PHASE_OUT, TimerGameCalendar::ConvertDateToYMD(*retirement).year) : GetString(STR_CATALOG_NO_PHASE_OUT));
+					text_end += GetCharacterHeight(FontSize::Normal);
+				}
 				needed_height = std::max(needed_height, (text_end - r.top) / GetCharacterHeight(FontSize::Normal));
 			}
 			if (needed_height != this->details_height) { // Details window are not high enough, enlarge them.
@@ -1965,7 +2083,7 @@ struct BuildVehicleWindow : Window {
 
 	void OnQueryTextFinished(std::optional<std::string> str) override
 	{
-		if (!str.has_value()) return;
+		if (this->catalog || !str.has_value()) return;
 
 		Command<Commands::RenameEngine>::Post(STR_ERROR_CAN_T_RENAME_TRAIN_TYPE + to_underlying(this->vehicle_type), this->rename_engine, *str);
 	}
@@ -1973,6 +2091,23 @@ struct BuildVehicleWindow : Window {
 	void OnDropdownSelect(WidgetID widget, int index, int click_result) override
 	{
 		switch (widget) {
+			case WID_BV_CATALOG_TYPE:
+				if (!this->catalog || !IsCompanyBuildableVehicleType(static_cast<VehicleType>(index))) break;
+				this->vehicle_type = static_cast<VehicleType>(index);
+				this->cargo_filter_criteria = CargoFilterCriteria::CF_ANY;
+				this->GetWidget<NWidgetCore>(WID_BV_LIST)->SetToolTip(STR_BUY_VEHICLE_TRAIN_LIST_TOOLTIP + to_underlying(this->vehicle_type));
+				this->GetWidget<NWidgetCore>(WID_BV_SHOW_HIDDEN_ENGINES)->SetStringTip(STR_SHOW_HIDDEN_ENGINES_VEHICLE_TRAIN + to_underlying(this->vehicle_type), STR_SHOW_HIDDEN_ENGINES_VEHICLE_TRAIN_TOOLTIP + to_underlying(this->vehicle_type));
+				this->sort_criteria = _engine_sort_last_criteria[this->vehicle_type];
+				this->descending_sort_order = _engine_sort_last_order[this->vehicle_type];
+				this->badge_filter_choices.clear();
+				this->SelectEngine(EngineID::Invalid());
+				this->eng_list.ForceRebuild();
+				this->ReInit();
+				this->GenerateBuildList();
+				if (!this->eng_list.empty()) this->SelectEngine(this->eng_list.front().engine_id);
+				this->vscroll->SetPosition(0);
+				break;
+
 			case WID_BV_SORT_DROPDOWN:
 				if (this->sort_criteria != index) {
 					this->sort_criteria = index;
@@ -2062,4 +2197,23 @@ void ShowBuildVehicleWindow(TileIndex tile, VehicleType type)
 	CloseWindowById(WindowClass::BuildVehicle, num);
 
 	new BuildVehicleWindow(_build_vehicle_desc, tile, type);
+}
+
+/** Read-only pre-game catalog, using the same widgets as the purchase window. */
+static WindowDesc _vehicle_catalog_desc(
+	WindowPosition::Center, "vehicle_catalog", 400, 440,
+	WindowClass::GameOptions, WindowClass::None,
+	WindowDefaultFlag::Modal,
+	_nested_build_vehicle_widgets,
+	&BuildVehicleWindow::hotkeys
+);
+
+/** Browse the selected NewGRFs without starting a game or restricting the model years. */
+void ShowVehicleCatalog(Window *parent, const GRFConfigList &config)
+{
+	if (_game_mode != GameMode::Menu) return;
+	CloseWindowById(WindowClass::GameOptions, GameOptionsWindowNumber::VehicleCatalog);
+	auto context = std::make_unique<VehicleCatalogContext>(config);
+	auto *window = new BuildVehicleWindow(_vehicle_catalog_desc, INVALID_TILE, VehicleType::Train, std::move(context));
+	window->parent = parent;
 }

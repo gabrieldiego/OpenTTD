@@ -643,6 +643,7 @@ struct NewGRFWindow : public Window, NewGRFScanCallback {
 		this->GetWidget<NWidgetStacked>(WID_NS_SHOW_EDIT)->SetDisplayedPlane(this->editable ? 0 : (this->show_params ? 1 : SZSP_HORIZONTAL));
 		this->GetWidget<NWidgetStacked>(WID_NS_SHOW_APPLY)->SetDisplayedPlane(this->editable && this->execute ? 0 : SZSP_VERTICAL);
 		this->FinishInitNested(GameOptionsWindowNumber::NewGRFState);
+		this->SetWidgetDisabledState(WID_NS_VEHICLE_CATALOG, _game_mode != GameMode::Menu);
 
 		this->querystrings[WID_NS_FILTER] = &this->filter_editbox;
 		this->filter_editbox.cancel_button = QueryString::ACTION_CLEAR;
@@ -665,6 +666,7 @@ struct NewGRFWindow : public Window, NewGRFScanCallback {
 	{
 		CloseWindowByClass(WindowClass::NewGRFParameters);
 		CloseWindowByClass(WindowClass::SavePreset);
+		this->CloseChildWindows(WindowClass::GameOptions);
 
 		if (this->editable && this->modified && !this->execute && !_exit_game) {
 			CopyGRFConfigList(this->orig_list, this->actives, true);
@@ -934,6 +936,11 @@ struct NewGRFWindow : public Window, NewGRFScanCallback {
 		}
 
 		switch (widget) {
+			case WID_NS_VEHICLE_CATALOG:
+				this->CloseChildWindows(WindowClass::NewGRFParameters);
+				ShowVehicleCatalog(this, this->actives);
+				break;
+
 			case WID_NS_PRESET_LIST: {
 				DropDownList list;
 
@@ -1897,8 +1904,9 @@ static constexpr std::initializer_list<NWidgetPart> _nested_newgrf_widgets = {
 	EndContainer(),
 	NWidget(WWT_PANEL, Colours::Mauve),
 		NWidgetFunction(NewGRFDisplay), SetPadding(WidgetDimensions::unscaled.sparse_resize),
-		/* Resize button. */
+		/* Vehicle catalog and resize button. */
 		NWidget(NWID_HORIZONTAL),
+			NWidget(WWT_PUSHTXTBTN, Colours::Mauve, WID_NS_VEHICLE_CATALOG), SetStringTip(STR_CATALOG_BUTTON, STR_CATALOG_BUTTON_TOOLTIP),
 			NWidget(NWID_SPACER), SetFill(1, 0), SetResize(1, 0),
 			NWidget(WWT_RESIZEBOX, Colours::Mauve), SetResizeWidgetTypeTip(ResizeWidgetType::HideBevel, STR_TOOLTIP_RESIZE),
 		EndContainer(),

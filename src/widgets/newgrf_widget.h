@@ -60,6 +60,7 @@ enum NewGRFStateWidgets : WidgetID {
 	WID_NS_SHOW_REMOVE,       ///< Select active list buttons (0 = normal, 1 = simple layout).
 	WID_NS_SHOW_EDIT,         ///< Select display of the buttons below the 'details'.
 	WID_NS_SHOW_APPLY,        ///< Select display of the apply button.
+	WID_NS_VEHICLE_CATALOG,   ///< Preview all vehicles in the selected configuration.
 };
 
 /** Widgets of the #SavePresetWindow class. */

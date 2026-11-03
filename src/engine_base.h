@@ -120,6 +120,7 @@ public:
 
 	Money GetRunningCost() const;
 	Money GetCost() const;
+	std::optional<TimerGameCalendar::Date> GetRetirementDate() const;
 	uint GetDisplayMaxSpeed() const;
 	uint GetPower() const;
 	uint GetDisplayWeight() const;

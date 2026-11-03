@@ -2,6 +2,7 @@ add_test_files(
     aircraft_range.cpp
     alternating_iterator.cpp
     bitmath_func.cpp
+    engine_retirement.cpp
     enum_over_optimisation.cpp
     flatset_type.cpp
     history_func.cpp

@@ -30,6 +30,7 @@ enum class GameOptionsWindowNumber : uint8_t {
 	About, ///< About window.
 	NewGRFState, ///< NewGRF settings.
 	GameOptions, ///< Game options.
+	VehicleCatalog, ///< Pre-game NewGRF vehicle catalog.
 };
 
 /** Window numbers for QueryString windows. */
@@ -642,6 +643,7 @@ enum class WindowClass : uint16_t {
 	 *   - #GameOptionsWindowNumber::About = #AboutWidgets
 	 *   - #GameOptionsWindowNumber::NewGRFState = #NewGRFStateWidgets
 	 *   - #GameOptionsWindowNumber::GameOptions = #GameOptionsWidgets
+	 *   - #GameOptionsWindowNumber::VehicleCatalog = #BuildVehicleWidgets (read-only)
 	 */
 	GameOptions,
 

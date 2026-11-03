@@ -728,6 +728,31 @@ void CalcEngineReliability(Engine *e, bool new_month)
 
 }
 
+/**
+ * Estimate when this model leaves the purchase list, using its generated reliability phases.
+ * This is the model's phase-out date, before the global engine-aging cutoff is applied.
+ * @return First unavailable month, or no date when model expiration is disabled.
+ */
+std::optional<TimerGameCalendar::Date> Engine::GetRetirementDate() const
+{
+	if (_settings_game.vehicle.never_expire_vehicles || this->info.base_life == 0xFF) return std::nullopt;
+
+	const Engine *source = this;
+	while (source->info.variant_id != EngineID::Invalid() && source->info.extra_flags.Test(ExtraEngineFlag::SyncReliability)) {
+		source = Engine::Get(source->info.variant_id);
+	}
+
+	int months = this->duration_phase_1 + this->duration_phase_2 + this->duration_phase_3;
+	if (this->info.retire_early != 0) {
+		months = std::min(months, this->duration_phase_1 + this->duration_phase_2 - this->info.retire_early * 12);
+	}
+	months = std::max(0, months);
+	auto intro = TimerGameCalendar::ConvertDateToYMD(source->intro_date);
+	/* Engine age starts at the first month boundary on or after introduction. */
+	int month = intro.month + months + (intro.day > 1 ? 1 : 0);
+	return TimerGameCalendar::ConvertYMDToDate(intro.year + month / 12, month % 12, 1);
+}
+
 /** Compute the value for #_year_engine_aging_stops. */
 void SetYearEngineAgingStops()
 {
