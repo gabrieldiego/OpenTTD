@@ -6129,3 +6129,6 @@ STR_VEHICLE_SERVICE_HOURS_TOOLTIP                              :{BLACK}Adjust th
 STR_VEHICLE_STATUS_MAINTENANCE_UNLOAD                            :Maintenance: disembarking (requires a reachable hangar)
 STR_VEHICLE_STATUS_MAINTENANCE_HANGAR                            :Maintenance: heading to hangar
 STR_VEHICLE_STATUS_MAINTENANCE_REPAIR                            :Maintenance: repairs in progress
+
+STR_PURCHASE_INFO_RATED_USAGE_LIFE                              :{BLACK}Rated operating life: {GOLD}{COMMA} hours
+STR_PURCHASE_INFO_DESIGNED                                      :{BLACK}Designed: {GOLD}{NUM}

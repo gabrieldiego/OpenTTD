@@ -887,11 +887,17 @@ int DrawVehiclePurchaseInfo(int left, int right, int y, EngineID engine_number, 
 	/* Draw details that apply to all types except rail wagons. */
 	if (e->type != VehicleType::Train || e->VehInfo<RailVehicleInfo>().railveh_type != RailVehicleType::Wagon) {
 		/* Design date - Life length */
-		DrawString(left, right, y, GetString(STR_PURCHASE_INFO_DESIGNED_LIFE, ymd.year, TimerGameCalendar::DateToYear(e->GetLifeLengthInDays())));
+		DrawString(left, right, y, e->UsesUsageAging()
+			? GetString(STR_PURCHASE_INFO_DESIGNED, ymd.year)
+			: GetString(STR_PURCHASE_INFO_DESIGNED_LIFE, ymd.year, TimerGameCalendar::DateToYear(e->GetLifeLengthInDays())));
 		y += GetCharacterHeight(FontSize::Normal);
 
 		/* Reliability */
 		DrawString(left, right, y, GetString(STR_PURCHASE_INFO_RELIABILITY, ToPercent16(e->reliability)));
+		y += GetCharacterHeight(FontSize::Normal);
+	}
+	if (e->UsesUsageAging()) {
+		DrawString(left, right, y, GetString(STR_PURCHASE_INFO_RATED_USAGE_LIFE, uint64_t(e->GetLifeLengthInDays().base()) * 24));
 		y += GetCharacterHeight(FontSize::Normal);
 	}
 
