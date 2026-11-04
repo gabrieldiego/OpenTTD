@@ -8,6 +8,7 @@
 /** @file vehicle_gui.cpp The base GUI for all vehicles. */
 
 #include "stdafx.h"
+#include "vehicle_wear.h"
 #include "debug.h"
 #include "company_func.h"
 #include "gui.h"
@@ -1480,7 +1481,7 @@ static bool VehicleNameSorter(const Vehicle * const &a, const Vehicle * const &b
 /** Sort vehicles by their age. @copydoc GUIList::Sorter */
 static bool VehicleAgeSorter(const Vehicle * const &a, const Vehicle * const &b)
 {
-	auto r = a->age - b->age;
+	auto r = GetVehicleUsageAge(a) - GetVehicleUsageAge(b);
 	return (r != 0) ? r < 0 : VehicleNumberSorter(a, b);
 }
 
@@ -1561,7 +1562,7 @@ static bool VehicleLengthSorter(const Vehicle * const &a, const Vehicle * const 
 /** Sort vehicles by the time they can still live. @copydoc GUIList::Sorter */
 static bool VehicleTimeToLiveSorter(const Vehicle * const &a, const Vehicle * const &b)
 {
-	int r = ClampTo<int32_t>((a->max_age - a->age) - (b->max_age - b->age));
+	int r = ClampTo<int32_t>((a->max_age - GetVehicleUsageAge(a)) - (b->max_age - GetVehicleUsageAge(b)));
 	return (r != 0) ? r < 0 : VehicleNumberSorter(a, b);
 }
 
@@ -1859,7 +1860,7 @@ void BaseVehicleListWindow::DrawVehicleListItems(VehicleID selected_vehicle, int
 				if (v->IsChainInDepot()) {
 					tc = TextColour::Blue;
 				} else {
-					tc = (v->age > v->max_age - CalendarTime::DAYS_IN_LEAP_YEAR) ? TextColour::Red : TextColour::Black;
+					tc = (GetVehicleUsageAge(v) > v->max_age - CalendarTime::DAYS_IN_LEAP_YEAR) ? TextColour::Red : TextColour::Black;
 				}
 
 				DrawString(ir.left, ir.right, ir.top + WidgetDimensions::scaled.framerect.top, GetString(STR_JUST_COMMA, v->unitnumber), tc);
@@ -2431,6 +2432,10 @@ static const StringID _service_interval_dropdown_wallclock[] = {
 	STR_VEHICLE_DETAILS_PERCENT,
 };
 
+static const StringID _service_interval_dropdown_usage[] = {
+	STR_VEHICLE_DETAILS_DEFAULT, STR_VEHICLE_DETAILS_OPERATING_HOURS, STR_VEHICLE_DETAILS_PERCENT,
+};
+
 /** Class for managing the vehicle details window. */
 struct VehicleDetailsWindow : Window {
 	TrainDetailsWindowTabs tab = TDW_TAB_CARGO; ///< For train vehicles: which tab is displayed.
@@ -2511,7 +2516,11 @@ struct VehicleDetailsWindow : Window {
 				dim = maxdim(dim, GetStringBoundingBox(GetString(STR_VEHICLE_INFO_PROFIT_THIS_YEAR_LAST_YEAR_MIN_PERFORMANCE, max_value, max_value, max_value)));
 				dim = maxdim(dim, GetStringBoundingBox(GetString(STR_VEHICLE_INFO_PROFIT_THIS_PERIOD_LAST_PERIOD_MIN_PERFORMANCE, max_value, max_value, max_value)));
 				dim = maxdim(dim, GetStringBoundingBox(GetString(STR_VEHICLE_INFO_RELIABILITY_BREAKDOWNS, max_value, max_value, max_value)));
-				dim = maxdim(dim, GetStringBoundingBox(GetString(TimerGameEconomy::UsingWallclockUnits() ? STR_VEHICLE_INFO_AGE_RUNNING_COST_PERIOD : STR_VEHICLE_INFO_AGE_RUNNING_COST_YR, STR_VEHICLE_INFO_AGE, max_value, max_value, max_value)));
+				if (Vehicle::Get(this->window_number)->GetEngine()->UsesUsageAging()) {
+					dim = maxdim(dim, GetStringBoundingBox(GetString(STR_VEHICLE_USAGE_RUNNING_COST, 999999, 999999, max_value)));
+				} else {
+					dim = maxdim(dim, GetStringBoundingBox(GetString(TimerGameEconomy::UsingWallclockUnits() ? STR_VEHICLE_INFO_AGE_RUNNING_COST_PERIOD : STR_VEHICLE_INFO_AGE_RUNNING_COST_YR, STR_VEHICLE_INFO_AGE, max_value, max_value, max_value)));
+				}
 				size.width = dim.width + padding.width;
 				break;
 			}
@@ -2544,6 +2553,7 @@ struct VehicleDetailsWindow : Window {
 
 			case WID_VD_SERVICE_INTERVAL_DROPDOWN: {
 				Dimension d = maxdim(GetStringListBoundingBox(_service_interval_dropdown_calendar), GetStringListBoundingBox(_service_interval_dropdown_wallclock));
+				if (Vehicle::Get(this->window_number)->GetEngine()->UsesUsageAging()) d = maxdim(d, GetStringListBoundingBox(_service_interval_dropdown_usage));
 				d.width += padding.width;
 				d.height += padding.height;
 				size = maxdim(size, d);
@@ -2551,6 +2561,10 @@ struct VehicleDetailsWindow : Window {
 			}
 
 			case WID_VD_SERVICING_INTERVAL:
+				if (Vehicle::Get(this->window_number)->GetEngine()->UsesUsageAging()) {
+					size.width = std::max(size.width, GetStringBoundingBox(GetString(STR_VEHICLE_SERVICE_USAGE, 999999, 999999)).width);
+					break;
+				}
 				/* Do we show the last serviced value as a date or minutes since service? */
 				auto params = TimerGameEconomy::UsingWallclockUnits()
 					? MakeParameters(GetParamMaxValue(MAX_SERVINT_DAYS), STR_VEHICLE_DETAILS_LAST_SERVICE_MINUTES_AGO, EconomyTime::MAX_DATE)
@@ -2621,13 +2635,19 @@ struct VehicleDetailsWindow : Window {
 			case WID_VD_TOP_DETAILS: {
 				Rect tr = r.Shrink(WidgetDimensions::scaled.framerect);
 
-				/* Draw running cost */
-				DrawString(tr,
-					GetString(TimerGameEconomy::UsingWallclockUnits() ? STR_VEHICLE_INFO_AGE_RUNNING_COST_PERIOD : STR_VEHICLE_INFO_AGE_RUNNING_COST_YR,
-						(v->age + CalendarTime::DAYS_IN_YEAR < v->max_age) ? STR_VEHICLE_INFO_AGE : STR_VEHICLE_INFO_AGE_RED,
-						TimerGameCalendar::DateToYear(v->age),
-						TimerGameCalendar::DateToYear(v->max_age),
-						v->GetDisplayRunningCost()));
+				if (v->GetEngine()->UsesUsageAging()) {
+					DrawString(tr, GetString(STR_VEHICLE_USAGE_RUNNING_COST,
+						GetVehicleOperatingHours(v), GetVehicleLifetimeTicks(v) * 24 / Ticks::DAY_TICKS, v->GetDisplayRunningCost()),
+						v->usage_ticks >= GetVehicleLifetimeTicks(v) ? TextColour::Red : TextColour::Black);
+				} else {
+					/* Draw running cost */
+					DrawString(tr,
+						GetString(TimerGameEconomy::UsingWallclockUnits() ? STR_VEHICLE_INFO_AGE_RUNNING_COST_PERIOD : STR_VEHICLE_INFO_AGE_RUNNING_COST_YR,
+							(v->age + CalendarTime::DAYS_IN_YEAR < v->max_age) ? STR_VEHICLE_INFO_AGE : STR_VEHICLE_INFO_AGE_RED,
+							TimerGameCalendar::DateToYear(v->age),
+							TimerGameCalendar::DateToYear(v->max_age),
+							v->GetDisplayRunningCost()));
+				}
 				tr.top += GetCharacterHeight(FontSize::Normal);
 
 				/* Draw max speed */
@@ -2701,6 +2721,17 @@ struct VehicleDetailsWindow : Window {
 				/* Draw service interval text */
 				Rect tr = r.Shrink(WidgetDimensions::scaled.framerect);
 
+				if (v->GetEngine()->UsesUsageAging()) {
+					if (!v->ServiceIntervalIsCustom() && !IsVehicleServiceIntervalEnabled(v->type, v->owner)) {
+						DrawString(tr.left, tr.right, CentreBounds(r.top, r.bottom, GetCharacterHeight(FontSize::Normal)), GetString(STR_CONFIG_SETTING_SERVINT_DISABLED), TextColour::Black);
+						break;
+					}
+					DrawString(tr.left, tr.right, CentreBounds(r.top, r.bottom, GetCharacterHeight(FontSize::Normal)),
+						GetString(v->ServiceIntervalIsPercent() ? STR_VEHICLE_SERVICE_CONDITION : STR_VEHICLE_SERVICE_USAGE,
+							v->ServiceIntervalIsPercent() ? v->GetServiceInterval() : GetVehicleServiceIntervalTicks(v) * 24 / Ticks::DAY_TICKS, GetVehicleServiceHours(v)));
+					break;
+				}
+
 				/* We're using wallclock units. Show minutes since last serviced. */
 				if (TimerGameEconomy::UsingWallclockUnits()) {
 					int minutes_since_serviced = (TimerGameEconomy::date - v->date_of_last_service).base() / EconomyTime::DAYS_IN_ECONOMY_MONTH;
@@ -2730,13 +2761,14 @@ struct VehicleDetailsWindow : Window {
 		}
 
 		/* Disable service-scroller when interval is set to disabled */
-		this->SetWidgetsDisabledState(!IsVehicleServiceIntervalEnabled(v->type, v->owner),
+		this->SetWidgetsDisabledState(v->owner != _local_company || (!(v->ServiceIntervalIsCustom() && v->GetEngine()->UsesUsageAging()) && !IsVehicleServiceIntervalEnabled(v->type, v->owner)),
 			WID_VD_INCREASE_SERVICING_INTERVAL,
 			WID_VD_DECREASE_SERVICING_INTERVAL);
 
 		StringID str =
 			!v->ServiceIntervalIsCustom() ? STR_VEHICLE_DETAILS_DEFAULT :
 			v->ServiceIntervalIsPercent() ? STR_VEHICLE_DETAILS_PERCENT :
+			v->GetEngine()->UsesUsageAging() ? STR_VEHICLE_DETAILS_OPERATING_HOURS :
 			TimerGameEconomy::UsingWallclockUnits() ? STR_VEHICLE_DETAILS_MINUTES : STR_VEHICLE_DETAILS_DAYS;
 		this->GetWidget<NWidgetCore>(WID_VD_SERVICE_INTERVAL_DROPDOWN)->SetString(str);
 		this->SetWidgetDisabledState(WID_VD_SERVICE_INTERVAL_DROPDOWN, v->owner != _local_company);
@@ -2751,7 +2783,7 @@ struct VehicleDetailsWindow : Window {
 			case WID_VD_DECREASE_SERVICING_INTERVAL: { // decrease int
 				const Vehicle *v = Vehicle::Get(this->window_number);
 				int mod;
-				if (!v->ServiceIntervalIsPercent() && TimerGameEconomy::UsingWallclockUnits()) {
+				if (!v->ServiceIntervalIsPercent() && (v->GetEngine()->UsesUsageAging() || TimerGameEconomy::UsingWallclockUnits())) {
 					mod = _ctrl_pressed ? 1 : 5;
 				} else {
 					mod = _ctrl_pressed ? 5 : 10;
@@ -2768,7 +2800,7 @@ struct VehicleDetailsWindow : Window {
 			case WID_VD_SERVICE_INTERVAL_DROPDOWN: {
 				const Vehicle *v = Vehicle::Get(this->window_number);
 				ShowDropDownMenu(this,
-					TimerGameEconomy::UsingWallclockUnits() ? _service_interval_dropdown_wallclock : _service_interval_dropdown_calendar,
+					v->GetEngine()->UsesUsageAging() ? _service_interval_dropdown_usage : TimerGameEconomy::UsingWallclockUnits() ? _service_interval_dropdown_wallclock : _service_interval_dropdown_calendar,
 					v->ServiceIntervalIsCustom() ? (v->ServiceIntervalIsPercent() ? 2 : 1) : 0, widget, 0, 0);
 				break;
 			}
@@ -2794,6 +2826,10 @@ struct VehicleDetailsWindow : Window {
 			StringID tool_tip;
 			if (v->ServiceIntervalIsPercent()) {
 				tool_tip = widget == WID_VD_INCREASE_SERVICING_INTERVAL ? STR_VEHICLE_DETAILS_INCREASE_SERVICING_INTERVAL_TOOLTIP_PERCENT : STR_VEHICLE_DETAILS_DECREASE_SERVICING_INTERVAL_TOOLTIP_PERCENT;
+			} else if (v->GetEngine()->UsesUsageAging()) {
+				uint step = (TimerGameEconomy::UsingWallclockUnits() ? EconomyTime::DAYS_IN_ECONOMY_MONTH : 1) * 24;
+				GuiShowTooltips(this, GetEncodedString(STR_VEHICLE_SERVICE_HOURS_TOOLTIP, step * 5, step), close_cond);
+				return true;
 			} else if (TimerGameEconomy::UsingWallclockUnits()) {
 				tool_tip = widget == WID_VD_INCREASE_SERVICING_INTERVAL ? STR_VEHICLE_DETAILS_INCREASE_SERVICING_INTERVAL_TOOLTIP_MINUTES : STR_VEHICLE_DETAILS_DECREASE_SERVICING_INTERVAL_TOOLTIP_MINUTES;
 			} else {
@@ -3204,6 +3240,12 @@ public:
 		text_colour = TextColour::Black;
 
 		if (v->vehstatus.Test(VehState::Crashed)) return GetString(STR_VEHICLE_STATUS_CRASHED);
+
+		if (v->type == VehicleType::Aircraft && Aircraft::From(v)->maintenance_state > 0 && Aircraft::From(v)->maintenance_state < 4) {
+			text_colour = TextColour::Red;
+			return GetString(Aircraft::From(v)->maintenance_state == 1 ? STR_VEHICLE_STATUS_MAINTENANCE_UNLOAD :
+					Aircraft::From(v)->maintenance_state == 2 ? STR_VEHICLE_STATUS_MAINTENANCE_HANGAR : STR_VEHICLE_STATUS_MAINTENANCE_REPAIR);
+		}
 
 		if (v->type != VehicleType::Aircraft && v->breakdown_ctr == 1) return GetString(STR_VEHICLE_STATUS_BROKEN_DOWN);
 

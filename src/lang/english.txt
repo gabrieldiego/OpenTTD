@@ -6116,6 +6116,16 @@ STR_CATALOG_INTRODUCTION                                      :{BLACK}Introducti
 STR_CATALOG_PHASE_OUT                                         :{BLACK}Phase-out (estimated): {GOLD}{NUM}
 STR_CATALOG_NO_PHASE_OUT                                      :{BLACK}Phase-out: {GOLD}None
 
+STR_VEHICLE_USAGE_RUNNING_COST                                 :Usage: {COMMA} h / rated life: {COMMA} h. Running cost: {CURRENCY_LONG}
+STR_VEHICLE_DETAILS_OPERATING_HOURS                             :Operating hours
+STR_VEHICLE_SERVICE_USAGE                                      :{BLACK}Service every {COMMA} operating hours; {COMMA} h since maintenance
+STR_VEHICLE_SERVICE_CONDITION                                  :{BLACK}Service after {NUM}% condition loss; {COMMA} h since maintenance
 STR_NEWS_VEHICLE_WEAR_NEAR_LIFE                                 :{VEHICLE} is approaching its rated operating life. Plan replacement or higher maintenance costs.
 STR_NEWS_VEHICLE_WEAR_EXPIRED                                   :{VEHICLE} has exceeded its rated operating life. Running and maintenance costs are increasing substantially.
 STR_NEWS_AIRCRAFT_MAINTENANCE                                   :{VEHICLE} requires airport maintenance. Cargo will be unloaded before the aircraft visits a hangar and resumes its interrupted stop.
+
+STR_VEHICLE_SERVICE_HOURS_TOOLTIP                              :{BLACK}Adjust the service schedule by {COMMA} operating hours (Ctrl: {COMMA} hours). Only moving time counts. Servicing restores condition; lifetime wear remains.
+
+STR_VEHICLE_STATUS_MAINTENANCE_UNLOAD                            :Maintenance: disembarking (requires a reachable hangar)
+STR_VEHICLE_STATUS_MAINTENANCE_HANGAR                            :Maintenance: heading to hangar
+STR_VEHICLE_STATUS_MAINTENANCE_REPAIR                            :Maintenance: repairs in progress
