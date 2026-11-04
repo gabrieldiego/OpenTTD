@@ -286,3 +286,81 @@ TEST_CASE_METHOD(WearFixture, "Opting out restores classic age and condition wit
 	SynchronizeVehicleWear(plane);
 	CHECK(plane->reliability == 12345); // Later loads cannot repair a classic vehicle.
 }
+
+TEST_CASE_METHOD(WearFixture, "A maintenance fee affects company cash, expenses and vehicle profit exactly once", "[wear][economy]")
+{
+	AutoRestoreBackup<CompanyID> local(_local_company, COMPANY_SPECTATOR);
+	REQUIRE(Company::CanAllocateItem());
+	Company *company = Company::CreateAtIndex(plane->owner, StringID{}, false);
+	company->money = Money{1000000};
+	REQUIRE(Engine::CanAllocateItem(2));
+	Engine *rail = Engine::Create(VehicleType::Train, 0);
+	Engine *road = Engine::Create(VehicleType::Road, 0);
+	rail->manufacturer_reliability = road->manufacturer_reliability = UINT16_MAX * 90 / 100;
+	REQUIRE(Train::CanAllocateItem());
+	Train *train = Train::Create();
+	train->engine_type = rail->index;
+	train->SetEngine();
+	train->SetFrontEngine();
+	REQUIRE(RoadVehicle::CanAllocateItem());
+	RoadVehicle *bus = RoadVehicle::Create();
+	bus->engine_type = road->index;
+	for (auto [v, expense] : std::array<std::pair<Vehicle *, ExpensesType>, 3>{{
+		{plane, ExpensesType::AircraftRun}, {train, ExpensesType::TrainRun}, {bus, ExpensesType::RoadVehRun}
+	}}) {
+		CAPTURE(v->type);
+		company->money = Money{1000000};
+		v->owner = company->index;
+		v->max_age = v->GetEngine()->GetLifeLengthInDays();
+		v->profit_this_year = Money{10000} << 8;
+		v->usage_ticks = v->service_usage_ticks = 180 * Ticks::DAY_TICKS;
+		Money fee = GetVehicleMaintenanceCost(v);
+		REQUIRE(fee > 0);
+		ChargeVehicleMaintenance(v);
+		CHECK(company->money == Money{1000000} - fee);
+		CHECK(company->yearly_expenses[0][expense] == fee);
+		CHECK(v->profit_this_year == ((Money{10000} - fee) << 8));
+		ServiceVehicleWear(v);
+		ChargeVehicleMaintenance(v);
+		CHECK(company->money == Money{1000000} - fee);
+		CHECK(company->yearly_expenses[0][expense] == fee);
+		CHECK(v->profit_this_year == ((Money{10000} - fee) << 8));
+	}
+}
+
+TEST_CASE_METHOD(WearFixture, "Train maintenance counts a two-ended model once and skips articulated sections", "[wear][economy]")
+{
+	AutoRestoreBackup<CompanyID> local(_local_company, COMPANY_SPECTATOR);
+	AutoRestoreBackup<Money> price(_price[Price::BuildRail], Money{100000});
+	REQUIRE(Company::CanAllocateItem());
+	Company *company = Company::CreateAtIndex(plane->owner, StringID{}, false);
+	company->money = Money{1000000};
+	REQUIRE(Engine::CanAllocateItem());
+	Engine *rail = Engine::Create(VehicleType::Train, 0);
+	rail->manufacturer_reliability = UINT16_MAX * 90 / 100;
+	REQUIRE(Train::CanAllocateItem(3));
+	Train *front = Train::Create(), *section = Train::Create(), *rear = Train::Create();
+	front->SetEngine();
+	front->SetFrontEngine();
+	for (Train *v : {front, section, rear}) {
+		v->engine_type = rail->index;
+		v->owner = company->index;
+		v->max_age = rail->GetLifeLengthInDays();
+		v->service_usage_ticks = 180 * Ticks::DAY_TICKS;
+	}
+	Money single = GetVehicleMaintenanceCost(front);
+	front->SetMultiheaded();
+	rear->SetMultiheaded();
+	section->SetArticulatedPart();
+	front->SetNext(section);
+	section->SetNext(rear);
+	Money total = GetVehicleMaintenanceCost(front) + GetVehicleMaintenanceCost(rear);
+	CHECK(total > 0);
+	CHECK(std::abs((total - single).base()) <= 2); // Integer rounding only; not twice the price.
+	ChargeVehicleMaintenance(front);
+	CHECK(company->money == Money{1000000} - total);
+	CHECK(company->yearly_expenses[0][ExpensesType::TrainRun] == total);
+	CHECK(front->profit_this_year == -(total << 8));
+	CHECK(section->profit_this_year == 0);
+	CHECK(rear->profit_this_year == 0);
+}

@@ -33,7 +33,8 @@ budget of 180 operating days; disabling automation does not imply daily servicin
 Servicing clears wear since the previous service and costs 0.5% of the model's
 current purchase price, multiplied by its maintenance factor. Repeated servicing
 without further usage costs nothing. The fee is charged to company running
-expenses. Lifetime wear remains. Running costs gradually
+expenses and the serviced vehicle's profit/loss (the front vehicle for a train),
+with a red floating cost over the depot or hangar for the local company. Lifetime wear remains. Running costs gradually
 increase with usage and overdue servicing, jump at rated life and rise further
 afterward, up to 5 times base cost. Maintenance costs also jump at rated life and
 rise up to 10 times base service cost. Existing base costs, inflation and NewGRF

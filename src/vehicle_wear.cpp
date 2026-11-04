@@ -9,6 +9,7 @@
 #include "vehicle_base.h"
 #include "engine_base.h"
 #include "train.h"
+#include "texteff.hpp"
 #include "company_func.h"
 #include "economy_func.h"
 #include "news_func.h"
@@ -132,6 +133,8 @@ void ChargeVehicleMaintenance(Vehicle *front)
 	if (cost == 0 || _game_mode == GameMode::Menu) return;
 	static const VehicleTypeIndexArray<ExpensesType> expenses = {ExpensesType::TrainRun, ExpensesType::RoadVehRun, ExpensesType::ShipRun, ExpensesType::AircraftRun};
 	SubtractMoneyFromCompany(front->owner, CommandCost(expenses[front->type], cost));
+	front->profit_this_year -= cost << 8;
+	if (front->owner == _local_company) ShowCostOrIncomeAnimation(front->x_pos, front->y_pos, front->z_pos, cost);
 }
 
 uint32_t GetVehicleWearFailureChance(const Vehicle *v, uint64_t exposure)
