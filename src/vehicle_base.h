@@ -249,6 +249,11 @@ public:
 	TimerGameCalendar::Date max_age{}; ///< Maximum age
 	TimerGameEconomy::Date date_of_last_service{}; ///< Last economy date the vehicle had a service at a depot.
 	TimerGameCalendar::Date date_of_last_service_newgrf{}; ///< Last calendar date the vehicle had a service at a depot, unchanged by the date cheat to protect against unsafe NewGRF behavior.
+	uint64_t usage_ticks = 0; ///< Lifetime moving time, in economy ticks.
+	uint64_t service_usage_ticks = 0; ///< Moving time since maintenance.
+	uint64_t breakdown_usage_ticks = 0; ///< Usage at the last failure-risk check.
+	uint16_t base_reliability = 0; ///< Stable quality when this vehicle was built.
+	uint8_t wear_warning_level = 0; ///< Last usage-lifetime warning emitted.
 	uint16_t reliability = 0; ///< Reliability.
 	uint16_t reliability_spd_dec = 0; ///< Reliability decrease speed.
 	uint8_t breakdown_ctr = 0; ///< Counter for managing breakdown events. @see Vehicle::HandleBreakdown

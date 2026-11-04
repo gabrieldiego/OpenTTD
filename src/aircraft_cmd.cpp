@@ -8,6 +8,7 @@
 /** @file aircraft_cmd.cpp This file deals with aircraft and airport movements functionalities. */
 
 #include "stdafx.h"
+#include "vehicle_wear.h"
 #include "aircraft.h"
 #include "landscape.h"
 #include "news_func.h"
@@ -332,6 +333,7 @@ CommandCost CmdBuildAircraft(DoCommandFlags flags, TileIndex tile, const Engine 
 		u->UpdateDeltaXY();
 
 		v->reliability = e->reliability;
+		v->base_reliability = e->UsesUsageAging() ? e->GetBaseReliability() : 0;
 		v->reliability_spd_dec = e->reliability_spd_dec;
 		v->max_age = e->GetLifeLengthInDays();
 
@@ -414,6 +416,9 @@ ClosestDepot Aircraft::FindClosestDepot()
 
 static void CheckIfAircraftNeedsService(Aircraft *v)
 {
+	/* Opted-in aircraft decide after reaching a terminal, so cargo can disembark first. */
+	if (v->GetEngine()->UsesUsageAging()) return;
+	if (v->maintenance_state != 0) return;
 	if (Company::Get(v->owner)->settings.vehicle.servint_aircraft == 0 || !v->NeedsAutomaticServicing()) return;
 	if (v->IsChainInDepot()) {
 		VehicleServiceInDepot(v);
@@ -442,7 +447,7 @@ Money Aircraft::GetRunningCost() const
 {
 	const Engine *e = this->GetEngine();
 	uint cost_factor = GetVehicleProperty(this, PROP_AIRCRAFT_RUNNING_COST_FACTOR, e->VehInfo<AircraftVehicleInfo>().running_cost);
-	return GetPrice(Price::RunningAircraft, cost_factor, e->GetGRF());
+	return ApplyVehicleRunningCostWear(this, GetPrice(Price::RunningAircraft, cost_factor, e->GetGRF()));
 }
 
 /** Calendar day handler */
@@ -1434,7 +1439,65 @@ static void AircraftEntersTerminal(Aircraft *v)
 		Game::NewEvent(new ScriptEventStationFirstVehicle(st->index, v->index));
 	}
 
+	BeginAircraftMaintenance(v);
 	v->BeginLoading();
+}
+
+/** Detect a fault on the ground, and disembark before visiting the hangar. */
+void BeginAircraftMaintenance(Aircraft *v)
+{
+	if (v->maintenance_state == 4) {
+		v->maintenance_state = 0;
+		return; // Repaired aircraft returning to its interrupted stop.
+	}
+	if (v->maintenance_state != 0 || !v->GetEngine()->UsesUsageAging()) return;
+	bool fault = CheckVehicleWearFailure(v);
+	if (!fault) {
+		/* Routine helipad servicing can remain at the pad, without a hangar visit. */
+		const Station *st = Station::GetIfValid(v->targetairport);
+		if (v->subtype == AIR_HELICOPTER && _settings_game.order.serviceathelipad && st != nullptr && st->airport.GetFTA()->num_helipads > 0) return;
+		if ((Company::Get(v->owner)->settings.vehicle.servint_aircraft == 0 && !v->ServiceIntervalIsCustom()) || !v->NeedsAutomaticServicing()) return;
+	}
+	v->maintenance_state = 1;
+	v->maintenance_station = v->targetairport;
+	v->maintenance_order_index = v->cur_real_order_index;
+	v->current_order.MakeGoToStation(v->targetairport);
+	v->current_order.SetUnloadType(OrderUnloadType::Unload);
+	v->current_order.SetLoadType(OrderLoadType::NoLoad);
+	if (fault) {
+		if (v->breakdowns_since_last_service != UINT8_MAX) v->breakdowns_since_last_service++;
+		if (v->owner == _local_company) AddVehicleAdviceNewsItem(AdviceType::VehicleOld, GetEncodedString(STR_NEWS_AIRCRAFT_MAINTENANCE, v->index), v->index);
+	}
+}
+
+/** Finish disembarking without advancing or modifying the shared order list. */
+void FinishAircraftMaintenanceUnloading(Aircraft *v)
+{
+	for (const Vehicle *u = v; u != nullptr; u = u->Next()) if (u->cargo.StoredCount() != 0) return;
+	/* Keep waiting at the stand if no suitable hangar exists yet. */
+	ClosestDepot depot = v->FindClosestDepot();
+	if (!depot.found) return;
+	v->LeaveStation();
+	v->maintenance_state = 2;
+	v->current_order.MakeGoToDepot(depot.destination, OrderDepotTypeFlag::Service);
+	v->dest_tile = depot.location;
+	InvalidateWindowData(WindowClass::VehicleView, v->index);
+}
+
+/** Return from maintenance to the original airport order, including its load instructions. */
+void RestoreAircraftMaintenanceOrder(Aircraft *v)
+{
+	const Order *order = v->GetOrder(v->maintenance_order_index);
+	if (order != nullptr && order->IsType(OT_GOTO_STATION) && order->GetDestination() == v->maintenance_station) {
+		v->cur_real_order_index = v->cur_implicit_order_index = v->maintenance_order_index;
+		v->current_order = *order;
+		v->maintenance_state = 4;
+	} else {
+		/* An edited/deleted order list takes precedence over the saved stop. */
+		v->maintenance_state = 0;
+		v->current_order.MakeDummy();
+		ProcessOrders(v);
+	}
 }
 
 /**
@@ -1521,7 +1584,13 @@ static void AircraftEventHandler_EnterTerminal(Aircraft *v, const AirportFTAClas
 /** Aircraft arrived in an airport hangar. @copydoc AircraftStateHandler */
 static void AircraftEventHandler_EnterHangar(Aircraft *v, const AirportFTAClass *apc)
 {
+	bool repair = v->maintenance_state == 2;
+	uint duration = Clamp<uint>(2 * Ticks::DAY_TICKS * GetVehicleMaintenanceCostPercent(v) / 100, 2 * Ticks::DAY_TICKS, 20 * Ticks::DAY_TICKS);
 	VehicleEnterDepot(v);
+	if (repair) {
+		v->maintenance_state = 3;
+		v->maintenance_ticks = duration;
+	}
 	v->state = apc->layout[v->pos].heading;
 }
 
@@ -1532,6 +1601,11 @@ static void AircraftEventHandler_InHangar(Aircraft *v, const AirportFTAClass *ap
 	if (v->previous_pos != v->pos) {
 		AircraftEventHandler_EnterHangar(v, apc);
 		return;
+	}
+
+	if (v->maintenance_state == 3) {
+		if (v->maintenance_ticks != 0) { --v->maintenance_ticks; return; }
+		RestoreAircraftMaintenanceOrder(v);
 	}
 
 	/* if we were sent to the depot, stay there */
@@ -1582,13 +1656,15 @@ static void AircraftEventHandler_AtTerminal(Aircraft *v, const AirportFTAClass *
 		AircraftEventHandler_EnterTerminal(v, apc);
 		/* on an airport with helipads, a helicopter will always land there
 		 * and get serviced at the same time - setting */
-		if (_settings_game.order.serviceathelipad) {
+		if (_settings_game.order.serviceathelipad && v->maintenance_state == 0) {
 			if (v->subtype == AIR_HELICOPTER && apc->num_helipads > 0) {
 				/* an excerpt of ServiceAircraft, without the invisibility stuff */
 				v->date_of_last_service = TimerGameEconomy::date;
 				v->date_of_last_service_newgrf = TimerGameCalendar::date;
 				v->breakdowns_since_last_service = 0;
-				v->reliability = v->GetEngine()->reliability;
+				ChargeVehicleMaintenance(v);
+				if (v->GetEngine()->UsesUsageAging()) ServiceVehicleWear(v);
+				else v->reliability = v->GetEngine()->reliability;
 				SetWindowDirty(WindowClass::VehicleDetails, v->index);
 			}
 		}
@@ -1661,7 +1737,7 @@ static void AircraftEventHandler_HeliTakeOff(Aircraft *v, [[maybe_unused]] const
 	AircraftNextAirportPos_and_Order(v);
 
 	/* Send the helicopter to a hangar if needed for replacement */
-	if (v->NeedsAutomaticServicing()) {
+	if (!v->GetEngine()->UsesUsageAging() && v->NeedsAutomaticServicing()) {
 		AutoRestoreBackup cur_company(_current_company, v->owner);
 		Command<Commands::SendVehicleToDepot>::Do(DoCommandFlag::Execute, v->index, DepotCommandFlag::Service, {});
 	}
@@ -1713,7 +1789,7 @@ static void AircraftEventHandler_Landing(Aircraft *v, [[maybe_unused]] const Air
 	AircraftLandAirplane(v);  // maybe crash airplane
 
 	/* check if the aircraft needs to be replaced or renewed and send it to a hangar if needed */
-	if (v->NeedsAutomaticServicing()) {
+	if (!v->GetEngine()->UsesUsageAging() && v->NeedsAutomaticServicing()) {
 		AutoRestoreBackup cur_company(_current_company, v->owner);
 		Command<Commands::SendVehicleToDepot>::Do(DoCommandFlag::Execute, v->index, DepotCommandFlag::Service, {});
 	}

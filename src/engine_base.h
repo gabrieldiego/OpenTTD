@@ -48,6 +48,7 @@ public:
 	TimerGameCalendar::Date intro_date{}; ///< Date of introduction of the engine.
 	int32_t age = 0; ///< Age of the engine in months.
 
+	uint16_t manufacturer_reliability = 0; ///< NewGRF opt-in quality, zero selects classic aging.
 	uint16_t reliability = 0; ///< Current reliability of the engine.
 	uint16_t reliability_spd_dec = 0; ///< Speed of reliability decay between services (per day).
 	uint16_t reliability_start = 0; ///< Initial reliability of the engine.
@@ -118,6 +119,9 @@ public:
 		return this->DetermineCapacity(nullptr, mail_capacity);
 	}
 
+	void UpdateManufacturerData();
+	bool UsesUsageAging() const { return this->manufacturer_reliability != 0; }
+	uint16_t GetBaseReliability() const;
 	Money GetRunningCost() const;
 	Money GetCost() const;
 	std::optional<TimerGameCalendar::Date> GetRetirementDate() const;

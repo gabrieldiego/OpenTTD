@@ -429,6 +429,8 @@ enum class SaveLoadVersion : uint16_t {
 
 	StationDisasterPenalty, ///< Saveload version: 370. Preserve temporary station disaster penalties.
 
+	VehicleUsageWear, ///< Saveload version: 371. Usage, stable quality and airport maintenance.
+
 	MaxVersion, ///< Highest possible saveload version.
 };
 

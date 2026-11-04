@@ -580,6 +580,8 @@ add_files(
     tunnelbridge_cmd.cpp
     tunnelbridge_cmd.h
     tunnelbridge_map.h
+    vehicle_wear.cpp
+    vehicle_wear.h
     vehicle.cpp
     vehicle_base.h
     vehicle_cmd.cpp

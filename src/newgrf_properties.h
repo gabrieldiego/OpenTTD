@@ -16,6 +16,9 @@
  * @todo Currently the list only contains properties which are used more than once in the code. I.e. they are available for callback 0x36.
  */
 enum PropertyID : uint8_t {
+	/** Local callback-36 extension: manufacturer baseline reliability as an integer percent. */
+	PROP_VEHICLE_BASE_RELIABILITY = 0xFF,
+	PROP_VEHICLE_USAGE_AGING = 0xFE, ///< Local opt-in signature (0x5745), required before interpreting quality.
 	PROP_VEHICLE_LOAD_AMOUNT                    = 0x07, ///< Loading speed
 
 	PROP_TRAIN_SPEED                            = 0x09, ///< Max. speed: 1 unit = 1/1.6 mph = 1 km-ish/h

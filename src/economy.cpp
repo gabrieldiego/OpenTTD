@@ -1710,10 +1710,11 @@ static void LoadUnloadVehicle(Vehicle *front)
 			}
 
 			assert(payment != nullptr);
-			uint free_space = _settings_game.station.cargo_patience ? GetStationCargoFreeSpace(*st, v->cargo_type) : UINT_MAX;
+			bool emergency_unload = front->type == VehicleType::Aircraft && Aircraft::From(front)->maintenance_state == 1;
+			uint free_space = _settings_game.station.cargo_patience && !emergency_unload ? GetStationCargoFreeSpace(*st, v->cargo_type) : UINT_MAX;
 			amount_unloaded = v->cargo.Unload(amount_unloaded, &ge->GetOrCreateData().cargo, v->cargo_type, payment, v->GetCargoTile(), free_space);
 			remaining = v->cargo.UnloadCount() > 0;
-			storage_blocked |= _settings_game.station.cargo_patience && remaining &&
+			storage_blocked |= _settings_game.station.cargo_patience && !emergency_unload && remaining &&
 					v->cargo.ActionCount(VehicleCargoList::MoveToAction::Transfer) > 0 && GetStationCargoFreeSpace(*st, v->cargo_type) == 0;
 			if (amount_unloaded > 0) {
 				dirty_vehicle = true;

@@ -6115,3 +6115,7 @@ STR_CATALOG_COMPARISON_TOOLTIP                                :{BLACK}Purchase a
 STR_CATALOG_INTRODUCTION                                      :{BLACK}Introduction: {GOLD}{NUM}
 STR_CATALOG_PHASE_OUT                                         :{BLACK}Phase-out (estimated): {GOLD}{NUM}
 STR_CATALOG_NO_PHASE_OUT                                      :{BLACK}Phase-out: {GOLD}None
+
+STR_NEWS_VEHICLE_WEAR_NEAR_LIFE                                 :{VEHICLE} is approaching its rated operating life. Plan replacement or higher maintenance costs.
+STR_NEWS_VEHICLE_WEAR_EXPIRED                                   :{VEHICLE} has exceeded its rated operating life. Running and maintenance costs are increasing substantially.
+STR_NEWS_AIRCRAFT_MAINTENANCE                                   :{VEHICLE} requires airport maintenance. Cargo will be unloaded before the aircraft visits a hangar and resumes its interrupted stop.

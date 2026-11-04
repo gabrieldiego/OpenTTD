@@ -51,6 +51,9 @@ using VehicleAirFlags = EnumBitSet<VehicleAirFlag, uint8_t>;
 static const int ROTOR_Z_OFFSET         = 5;    ///< Z Offset between helicopter- and rotorsprite.
 
 void HandleAircraftEnterHangar(Aircraft *v);
+void BeginAircraftMaintenance(Aircraft *v);
+void FinishAircraftMaintenanceUnloading(Aircraft *v);
+void RestoreAircraftMaintenanceOrder(Aircraft *v);
 void GetAircraftSpriteSize(EngineID engine, uint &width, uint &height, int &xoffs, int &yoffs, EngineImageType image_type);
 void UpdateAirplanesOnNewStation(const Station *st);
 void UpdateAircraftCache(Aircraft *v, bool update_range = false);
@@ -73,6 +76,10 @@ struct AircraftCache {
  * Aircraft, helicopters, rotors and their shadows belong to this class.
  */
 struct Aircraft final : public SpecializedVehicle<Aircraft, VehicleType::Aircraft> {
+	uint8_t maintenance_state = 0; ///< 0 normal, 1 disembarking, 2 to hangar, 3 repair, 4 return to interrupted stop.
+	uint16_t maintenance_ticks = 0; ///< Remaining repair time in the hangar.
+	StationID maintenance_station = StationID::Invalid(); ///< Airport where the fault interrupted service.
+	VehicleOrderID maintenance_order_index = 0; ///< Original order to resume after repair.
 	uint16_t crashed_counter = 0; ///< Timer for handling crash animations.
 	uint8_t pos = 0; ///< Next desired position of the aircraft.
 	uint8_t previous_pos = 0; ///< Previous desired position of the aircraft.

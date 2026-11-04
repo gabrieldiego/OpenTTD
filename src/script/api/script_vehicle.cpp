@@ -8,6 +8,7 @@
 /** @file script_vehicle.cpp Implementation of ScriptVehicle. */
 
 #include "../../stdafx.h"
+#include "../../vehicle_wear.h"
 #include "script_engine.hpp"
 #include "script_cargo.hpp"
 #include "script_gamesettings.hpp"
@@ -317,7 +318,7 @@
 {
 	if (!IsValidVehicle(vehicle_id)) return -1;
 
-	return ::Vehicle::Get(vehicle_id)->age.base();
+	return GetVehicleUsageAge(::Vehicle::Get(vehicle_id)).base();
 }
 
 /* static */ SQInteger ScriptVehicle::GetWagonAge(VehicleID vehicle_id, SQInteger wagon)
@@ -329,7 +330,7 @@
 	if (v->type == ::VehicleType::Train) {
 		while (wagon-- > 0) v = ::Train::From(v)->GetNextUnit();
 	}
-	return v->age.base();
+	return GetVehicleUsageAge(v).base();
 }
 
 /* static */ SQInteger ScriptVehicle::GetMaxAge(VehicleID vehicle_id)
@@ -343,7 +344,7 @@
 {
 	if (!IsPrimaryVehicle(vehicle_id)) return -1;
 
-	return (::Vehicle::Get(vehicle_id)->max_age - ::Vehicle::Get(vehicle_id)->age).base();
+	return (::Vehicle::Get(vehicle_id)->max_age - GetVehicleUsageAge(::Vehicle::Get(vehicle_id))).base();
 }
 
 /* static */ SQInteger ScriptVehicle::GetCurrentSpeed(VehicleID vehicle_id)

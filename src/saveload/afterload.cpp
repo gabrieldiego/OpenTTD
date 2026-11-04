@@ -8,6 +8,7 @@
 /** @file afterload.cpp Code updating data after game load. */
 
 #include "../stdafx.h"
+#include "../vehicle_wear.h"
 #include "../void_map.h"
 #include "../signs_base.h"
 #include "../depot_base.h"
@@ -801,6 +802,10 @@ bool AfterLoadGame()
 
 	/* Copy temporary data to Engine pool */
 	CopyTempEngineData();
+	for (Engine *e : Engine::Iterate()) {
+		e->UpdateManufacturerData();
+		if (e->UsesUsageAging()) e->reliability = e->GetBaseReliability();
+	}
 
 	/* Connect front and rear engines of multiheaded trains and converts
 	 * subtype to the new format */
@@ -3044,6 +3049,7 @@ bool AfterLoadGame()
 
 	/* Update all vehicles: Phase 2 */
 	AfterLoadVehiclesPhase2(true);
+	for (Vehicle *v : Vehicle::Iterate()) if (IsCompanyBuildableVehicleType(v->type)) SynchronizeVehicleWear(v);
 
 	/* The center of train vehicles was changed, fix up spacing. */
 	if (IsSavegameVersionBefore(SaveLoadVersion::VehicleCentreAndZPos)) FixupTrainLengths();
@@ -3480,6 +3486,7 @@ void ReloadNewGRFData()
 	AfterLoadVehiclesPhase1(false);
 	AfterLoadVehiclesPhase2(false);
 	StartupEngines();
+	for (Vehicle *v : Vehicle::Iterate()) if (IsCompanyBuildableVehicleType(v->type)) SynchronizeVehicleWear(v);
 	GroupStatistics::UpdateAfterLoad();
 	/* update station graphics */
 	AfterLoadStations();

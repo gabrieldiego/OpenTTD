@@ -470,8 +470,8 @@ uint Engine::GetDisplayMaxTractiveEffort() const
  */
 TimerGameCalendar::Date Engine::GetLifeLengthInDays() const
 {
-	/* Assume leap years; this gives the player a bit more than the given amount of years, but never less. */
-	return TimerGameCalendar::Date{(this->info.lifelength + _settings_game.vehicle.extend_vehicle_life).base() * CalendarTime::DAYS_IN_LEAP_YEAR};
+	/* NewGRF opt-in usage life uses 365-day years; classic vehicles retain leap-year allowance. */
+	return TimerGameCalendar::Date{(this->info.lifelength + _settings_game.vehicle.extend_vehicle_life).base() * (this->UsesUsageAging() ? CalendarTime::DAYS_IN_YEAR : CalendarTime::DAYS_IN_LEAP_YEAR)};
 }
 
 /**
@@ -726,6 +726,22 @@ void CalcEngineReliability(Engine *e, bool new_month)
 		AddRemoveEngineFromAutoreplaceAndBuildWindows(e->type);
 	}
 
+	if (e->UsesUsageAging()) e->reliability = e->GetBaseReliability();
+}
+
+/** Read explicitly opted-in manufacturer data after NewGRF loading. */
+void Engine::UpdateManufacturerData()
+{
+	this->manufacturer_reliability = 0;
+	if (GetEngineProperty(this->index, PROP_VEHICLE_USAGE_AGING, 0) != 0x5745) return;
+	int percent = GetEngineProperty(this->index, PROP_VEHICLE_BASE_RELIABILITY, -1);
+	if (percent >= 1 && percent <= 100) this->manufacturer_reliability = percent * UINT16_MAX / 100;
+}
+
+/** Stable opted-in quality, or the classic model's current reliability. */
+uint16_t Engine::GetBaseReliability() const
+{
+	return this->UsesUsageAging() ? this->manufacturer_reliability : this->reliability;
 }
 
 /**
@@ -848,6 +864,7 @@ void StartupOneEngine(Engine *e, const TimerGameCalendar::YearMonthDay &aging_ym
 	RestoreRandomSeeds(saved_seeds);
 
 	e->reliability_spd_dec = ei->decay_speed << 2;
+	e->UpdateManufacturerData();
 
 	/* prevent certain engines from ever appearing. */
 	if (!ei->climates.Test(_settings_game.game_creation.landscape)) {

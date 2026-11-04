@@ -8,6 +8,7 @@
 /** @file ship_cmd.cpp Handling of ships. */
 
 #include "stdafx.h"
+#include "vehicle_wear.h"
 #include "ship.h"
 #include "landscape.h"
 #include "timetable.h"
@@ -207,7 +208,7 @@ static const Depot *FindClosestShipDepot(const Vehicle *v, uint max_distance)
 
 static void CheckIfShipNeedsService(Vehicle *v)
 {
-	if (Company::Get(v->owner)->settings.vehicle.servint_ships == 0 || !v->NeedsAutomaticServicing()) return;
+	if ((Company::Get(v->owner)->settings.vehicle.servint_ships == 0 && !(v->ServiceIntervalIsCustom() && v->GetEngine()->UsesUsageAging())) || !v->NeedsAutomaticServicing()) return;
 	if (v->IsChainInDepot()) {
 		VehicleServiceInDepot(v);
 		return;
@@ -252,7 +253,7 @@ Money Ship::GetRunningCost() const
 {
 	const Engine *e = this->GetEngine();
 	uint cost_factor = GetVehicleProperty(this, PROP_SHIP_RUNNING_COST_FACTOR, e->VehInfo<ShipVehicleInfo>().running_cost);
-	return GetPrice(Price::RunningShip, cost_factor, e->GetGRF());
+	return ApplyVehicleRunningCostWear(this, GetPrice(Price::RunningShip, cost_factor, e->GetGRF()));
 }
 
 /** Calendar day handler. */
@@ -869,6 +870,7 @@ CommandCost CmdBuildShip(DoCommandFlags flags, TileIndex tile, const Engine *e, 
 		v->engine_type = e->index;
 
 		v->reliability = e->reliability;
+		v->base_reliability = e->UsesUsageAging() ? e->GetBaseReliability() : 0;
 		v->reliability_spd_dec = e->reliability_spd_dec;
 		v->max_age = e->GetLifeLengthInDays();
 

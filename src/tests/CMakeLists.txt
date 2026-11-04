@@ -23,5 +23,6 @@ add_test_files(
     test_script_admin.cpp
     test_window_desc.cpp
     tilearea.cpp
+    vehicle_wear.cpp
     utf8.cpp
 )

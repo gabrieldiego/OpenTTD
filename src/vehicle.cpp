@@ -8,6 +8,7 @@
 /** @file vehicle.cpp Base implementations of all vehicles. */
 
 #include "stdafx.h"
+#include "vehicle_wear.h"
 #include "error.h"
 #include "roadveh.h"
 #include "ship.h"
@@ -174,7 +175,7 @@ bool Vehicle::NeedsAutorenewing(const Company *c, bool use_renew_setting) const
 	assert(c == Company::Get(this->owner));
 
 	if (use_renew_setting && !c->settings.engine_renew) return false;
-	if (this->age - this->max_age < (c->settings.engine_renew_months * 30)) return false;
+	if (GetVehicleUsageAge(this) - this->max_age < (c->settings.engine_renew_months * 30)) return false;
 
 	/* Only engines need renewing */
 	if (this->type == VehicleType::Train && !Train::From(this)->IsEngine()) return false;
@@ -192,11 +193,13 @@ void VehicleServiceInDepot(Vehicle *v)
 	assert(v != nullptr);
 	SetWindowDirty(WindowClass::VehicleDetails, v->index); // ensure that last service date and reliability are updated
 
+	ChargeVehicleMaintenance(v);
 	do {
 		v->date_of_last_service = TimerGameEconomy::date;
 		v->date_of_last_service_newgrf = TimerGameCalendar::date;
 		v->breakdowns_since_last_service = 0;
-		v->reliability = v->GetEngine()->reliability;
+		if (v->GetEngine()->UsesUsageAging()) ServiceVehicleWear(v);
+		else v->reliability = v->GetEngine()->reliability;
 		/* Prevent vehicles from breaking down directly after exiting the depot. */
 		v->breakdown_chance /= 4;
 		if (_settings_game.difficulty.vehicle_breakdowns == VehicleBreakdowns::Reduced) v->breakdown_chance = 0; // on reduced breakdown
@@ -220,9 +223,11 @@ bool Vehicle::NeedsServicing() const
 	const Company *c = Company::Get(this->owner);
 
 	/* Service intervals can be measured in different units, which we handle individually. */
-	if (this->ServiceIntervalIsPercent()) {
+	if (this->GetEngine()->UsesUsageAging() && !this->ServiceIntervalIsPercent()) {
+		if (this->service_usage_ticks < GetVehicleServiceIntervalTicks(this)) return false;
+	} else if (this->ServiceIntervalIsPercent()) {
 		/* Service interval is in percents. */
-		if (this->reliability >= this->GetEngine()->reliability * (100 - this->GetServiceInterval()) / 100) return false;
+		if (this->reliability >= (this->GetEngine()->UsesUsageAging() && this->base_reliability != 0 ? this->base_reliability : this->GetEngine()->reliability) * (100 - this->GetServiceInterval()) / 100) return false;
 	} else if (TimerGameEconomy::UsingWallclockUnits()) {
 		/* Service interval is in minutes. */
 		if (this->date_of_last_service + (this->GetServiceInterval() * EconomyTime::DAYS_IN_ECONOMY_MONTH) >= TimerGameEconomy::date) return false;
@@ -1002,6 +1007,8 @@ void CallVehicleTicks()
 	for (Vehicle *v : Vehicle::Iterate()) {
 		[[maybe_unused]] VehicleID vehicle_index = v->index;
 
+		if (IsCompanyBuildableVehicleType(v->type)) RecordVehicleUsage(v);
+
 		/* Vehicle could be deleted in this tick */
 		if (!v->Tick()) {
 			assert(Vehicle::Get(vehicle_index) == nullptr);
@@ -1320,6 +1327,22 @@ static const uint8_t _breakdown_chance[64] = {
  */
 void CheckVehicleBreakdown(Vehicle *v)
 {
+	if (v->GetEngine()->UsesUsageAging()) {
+		/* Vehicles in the menu don't break down. */
+		if (_game_mode == GameMode::Menu) return;
+
+		UpdateVehicleWear(v);
+		/* Aircraft risk is checked at the terminal; flights keep their full cruise speed. */
+		if (v->type == VehicleType::Aircraft || v->breakdown_ctr != 0 || v->cur_speed < 5) return;
+		if (CheckVehicleWearFailure(v)) {
+			uint32_t r = Random();
+			v->breakdown_ctr = GB(r, 16, 6) + 0x3F;
+			v->breakdown_delay = GB(r, 24, 7) + 0x80;
+			v->breakdown_chance = 0;
+		}
+		return;
+	}
+
 	/* Vehicles in the menu don't break down. */
 	if (_game_mode == GameMode::Menu) return;
 
@@ -1442,6 +1465,7 @@ bool Vehicle::HandleBreakdown()
  */
 void EconomyAgeVehicle(Vehicle *v)
 {
+	UpdateVehicleWear(v);
 	if (v->economy_age < EconomyTime::MAX_DATE) {
 		v->economy_age++;
 		if (v->IsPrimaryVehicle() && v->economy_age == VEHICLE_PROFIT_MIN_AGE + 1) GroupStatistics::VehicleReachedMinAge(v);
@@ -1455,6 +1479,7 @@ void EconomyAgeVehicle(Vehicle *v)
 void AgeVehicle(Vehicle *v)
 {
 	if (v->age < CalendarTime::MAX_DATE) v->age++;
+	if (v->GetEngine()->UsesUsageAging()) return;
 
 	if (!v->IsPrimaryVehicle() && (v->type != VehicleType::Train || !Train::From(v)->IsEngine())) return;
 
@@ -2464,7 +2489,12 @@ void Vehicle::HandleLoading(bool mode)
 			TimerGameTick::Ticks wait_time = std::max(this->current_order.GetTimetabledWait() - this->lateness_counter, 0);
 
 			/* Not the first call for this tick, or still loading */
-			if (mode || !this->vehicle_flags.Test(VehicleFlag::LoadingFinished) || this->current_order_time < wait_time) return;
+			if (mode || !this->vehicle_flags.Test(VehicleFlag::LoadingFinished) || (this->current_order_time < wait_time && !(this->type == VehicleType::Aircraft && Aircraft::From(this)->maintenance_state == 1))) return;
+
+			if (this->type == VehicleType::Aircraft && Aircraft::From(this)->maintenance_state == 1) {
+				FinishAircraftMaintenanceUnloading(Aircraft::From(this));
+				return;
+			}
 
 			this->PlayLeaveStationSound();
 

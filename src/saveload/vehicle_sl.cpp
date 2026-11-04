@@ -705,6 +705,11 @@ public:
 		SaveLoad::Variable<VarFileType::U8>("day_counter", SLE_OBJECT_ADDRESS(Vehicle, day_counter)),
 		SaveLoad::Variable<VarFileType::U8>("tick_counter", SLE_OBJECT_ADDRESS(Vehicle, tick_counter)),
 		SaveLoad::Variable<VarFileType::U8>("running_ticks", SLE_OBJECT_ADDRESS(Vehicle, running_ticks), SaveLoadVersion::FractionProfitRunningTicks),
+		SaveLoad::Variable<VarFileType::U64>("usage_ticks", SLE_OBJECT_ADDRESS(Vehicle, usage_ticks), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U64>("service_usage_ticks", SLE_OBJECT_ADDRESS(Vehicle, service_usage_ticks), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U64>("breakdown_usage_ticks", SLE_OBJECT_ADDRESS(Vehicle, breakdown_usage_ticks), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U16>("base_reliability", SLE_OBJECT_ADDRESS(Vehicle, base_reliability), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U8>("wear_warning_level", SLE_OBJECT_ADDRESS(Vehicle, wear_warning_level), SaveLoadVersion::VehicleUsageWear),
 
 		SaveLoad::Variable<VarFileType::U8>("cur_implicit_order_index", SLE_OBJECT_ADDRESS(Vehicle, cur_implicit_order_index)),
 		SaveLoad::Variable<VarFileType::U8>("cur_real_order_index", SLE_OBJECT_ADDRESS(Vehicle, cur_real_order_index), SaveLoadVersion::TrackRealAndAutoOrders),
@@ -966,6 +971,10 @@ class SlVehicleAircraft : public DefaultSaveLoadHandler<SlVehicleAircraft, Vehic
 public:
 	static inline const SaveLoad description[] = {
 		SaveLoad::Struct<SlVehicleCommon>("common"),
+		SaveLoad::Variable<VarFileType::U8>("maintenance_state", SLE_OBJECT_ADDRESS(Aircraft, maintenance_state), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U16>("maintenance_ticks", SLE_OBJECT_ADDRESS(Aircraft, maintenance_ticks), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U16>("maintenance_station", SLE_OBJECT_ADDRESS(Aircraft, maintenance_station), SaveLoadVersion::VehicleUsageWear),
+		SaveLoad::Variable<VarFileType::U16>("maintenance_order_index", SLE_OBJECT_ADDRESS(Aircraft, maintenance_order_index), SaveLoadVersion::VehicleUsageWear),
 		SaveLoad::Variable<VarFileType::U16>("crashed_counter", SLE_OBJECT_ADDRESS(Aircraft, crashed_counter)),
 		SaveLoad::Variable<VarFileType::U8>("pos", SLE_OBJECT_ADDRESS(Aircraft, pos)),
 

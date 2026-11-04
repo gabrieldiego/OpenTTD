@@ -8,6 +8,7 @@
 /** @file train_cmd.cpp Handling of trains. */
 
 #include "stdafx.h"
+#include "vehicle_wear.h"
 #include "error.h"
 #include "articulated_vehicles.h"
 #include "command_func.h"
@@ -700,6 +701,10 @@ static CommandCost CmdBuildRailWagon(DoCommandFlags flags, TileIndex tile, const
 		v->vehstatus = {VehState::Hidden, VehState::DefaultPalette};
 
 		v->SetWagon();
+		if (e->UsesUsageAging()) {
+			v->base_reliability = v->reliability = e->GetBaseReliability();
+			v->max_age = e->GetLifeLengthInDays();
+		}
 
 		v->SetFreeWagon();
 		InvalidateWindowData(WindowClass::VehicleDepot, v->tile);
@@ -845,6 +850,7 @@ CommandCost CmdBuildRailVehicle(DoCommandFlags flags, TileIndex tile, const Engi
 		v->gcache.first_engine = EngineID::Invalid(); // needs to be set before first callback
 
 		v->reliability = e->reliability;
+		v->base_reliability = e->UsesUsageAging() ? e->GetBaseReliability() : 0;
 		v->reliability_spd_dec = e->reliability_spd_dec;
 		v->max_age = e->GetLifeLengthInDays();
 
@@ -4189,7 +4195,7 @@ Money Train::GetRunningCost() const
 		/* Halve running cost for multiheaded parts */
 		if (v->IsMultiheaded()) cost_factor /= 2;
 
-		cost += GetPrice(e->VehInfo<RailVehicleInfo>().running_cost_class, cost_factor, e->GetGRF());
+		cost += ApplyVehicleRunningCostWear(v, GetPrice(e->VehInfo<RailVehicleInfo>().running_cost_class, cost_factor, e->GetGRF()));
 	} while ((v = v->GetNextVehicle()) != nullptr);
 
 	return cost;
@@ -4230,7 +4236,7 @@ bool Train::Tick()
  */
 static void CheckIfTrainNeedsService(Train *v)
 {
-	if (Company::Get(v->owner)->settings.vehicle.servint_trains == 0 || !v->NeedsAutomaticServicing()) return;
+	if ((Company::Get(v->owner)->settings.vehicle.servint_trains == 0 && !(v->ServiceIntervalIsCustom() && v->GetEngine()->UsesUsageAging())) || !v->NeedsAutomaticServicing()) return;
 	if (v->IsChainInDepot()) {
 		VehicleServiceInDepot(v);
 		return;

@@ -8,6 +8,7 @@
 /** @file roadveh_cmd.cpp Handling of road vehicles. */
 
 #include "stdafx.h"
+#include "vehicle_wear.h"
 #include "bridge.h"
 #include "roadveh.h"
 #include "command_func.h"
@@ -302,6 +303,7 @@ CommandCost CmdBuildRoadVehicle(DoCommandFlags flags, TileIndex tile, const Engi
 		v->gcache.first_engine = EngineID::Invalid(); // needs to be set before first callback
 
 		v->reliability = e->reliability;
+		v->base_reliability = e->UsesUsageAging() ? e->GetBaseReliability() : 0;
 		v->reliability_spd_dec = e->reliability_spd_dec;
 		v->max_age = e->GetLifeLengthInDays();
 
@@ -1652,7 +1654,7 @@ Money RoadVehicle::GetRunningCost() const
 	uint cost_factor = GetVehicleProperty(this, PROP_ROADVEH_RUNNING_COST_FACTOR, e->VehInfo<RoadVehicleInfo>().running_cost);
 	if (cost_factor == 0) return 0;
 
-	return GetPrice(e->VehInfo<RoadVehicleInfo>().running_cost_class, cost_factor, e->GetGRF());
+	return ApplyVehicleRunningCostWear(this, GetPrice(e->VehInfo<RoadVehicleInfo>().running_cost_class, cost_factor, e->GetGRF()));
 }
 
 bool RoadVehicle::Tick()
@@ -1679,7 +1681,7 @@ void RoadVehicle::SetDestTile(TileIndex tile)
 static void CheckIfRoadVehNeedsService(RoadVehicle *v)
 {
 	/* If we already got a slot at a stop, use that FIRST, and go to a depot later */
-	if (Company::Get(v->owner)->settings.vehicle.servint_roadveh == 0 || !v->NeedsAutomaticServicing()) return;
+	if ((Company::Get(v->owner)->settings.vehicle.servint_roadveh == 0 && !(v->ServiceIntervalIsCustom() && v->GetEngine()->UsesUsageAging())) || !v->NeedsAutomaticServicing()) return;
 	if (v->IsChainInDepot()) {
 		VehicleServiceInDepot(v);
 		return;
